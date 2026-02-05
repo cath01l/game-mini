@@ -1,95 +1,91 @@
 body {
-    font-family: 'Courier New', Courier, monospace; /* Retro vibe */
-    background-color: #2d3436;
-    color: white;
-    margin: 0;
-    height: 100vh;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    overflow: hidden;
+  margin: 0;
+  background: #0d0f1a;
+  color: white;
+  font-family: "Courier New", monospace;
+  text-align: center;
 }
 
-.hidden { display: none !important; }
-
-/* Screens */
-#start-screen, #proposal-screen {
-    background: rgba(0, 0, 0, 0.85);
-    padding: 50px;
-    border-radius: 10px;
-    text-align: center;
-    border: 2px solid #fff;
-    box-shadow: 0 0 20px #ff7675;
+.hidden {
+  display: none;
 }
 
-h1 { color: #ff7675; margin-bottom: 20px; }
-.big-text { font-size: 2.5rem; font-weight: bold; margin: 30px 0; }
-.instructions { margin-top: 30px; font-size: 0.9rem; color: #aaa; }
-
-.team-select button {
-    background: #fff;
-    color: #333;
-    border: none;
-    padding: 20px 30px;
-    margin: 10px;
-    font-size: 1.2rem;
-    cursor: pointer;
-    font-family: inherit;
-    font-weight: bold;
-    border-radius: 5px;
-    transition: 0.3s;
+#team-select {
+  margin-top: 120px;
 }
-.team-select button:hover { background: #ff7675; color: white; }
 
-/* Game Area */
+#team-select button {
+  font-size: 20px;
+  padding: 15px 30px;
+  margin: 15px;
+  cursor: pointer;
+}
+
+body.ferrari { --accent: #ff4d6d; }
+body.mercedes { --accent: #cfd8dc; }
+
 #game-container {
-    position: relative;
-    width: 800px;
-    height: 600px;
+  width: 900px;
+  margin: 20px auto;
+  position: relative;
+}
+
+#hud {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  color: var(--accent, #ff4d6d);
 }
 
 canvas {
-    background-color: #55efc4;
-    border: 5px solid #fff;
-    border-radius: 5px;
-    box-shadow: 0 0 50px rgba(0,0,0,0.5);
+  background: #1a1d2e;
+  border: 4px solid var(--accent, #ff4d6d);
 }
 
-/* Dialogue Box (The Story Part) */
 #dialogue-box {
-    position: absolute;
-    bottom: 20px;
-    left: 20px;
-    right: 20px;
-    height: 120px;
-    background: rgba(0, 0, 0, 0.9);
-    border: 4px solid white;
-    border-radius: 10px;
-    padding: 20px;
-    font-size: 1.2rem;
-    line-height: 1.5;
-    z-index: 10;
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  background: rgba(0,0,0,0.85);
+  padding: 15px;
 }
 
-.continue-hint {
-    position: absolute;
-    bottom: 10px;
-    right: 20px;
-    font-size: 0.8rem;
-    animation: blink 1s infinite;
-    color: #ff7675;
+.hint {
+  font-size: 12px;
+  opacity: 0.6;
 }
 
-@keyframes blink { 50% { opacity: 0; } }
-
-/* Mobile Blocker */
-#mobile-blocker {
-    position: fixed; top:0; left:0; width:100%; height:100%;
-    background: #2d3436; z-index: 9999;
-    display: flex; flex-direction: column;
-    justify-content: center; align-items: center; text-align: center;
+#photo-overlay {
+  position: absolute;
+  top: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0,0,0,0.6);
+  padding: 12px;
+  border-radius: 12px;
 }
 
-/* Proposal Buttons */
-#yes-btn { background: #00b894; color: white; border: none; padding: 15px 40px; font-size: 1.5rem; border-radius: 5px; cursor: pointer; }
-#no-btn { background: #d63031; color: white; border: none; padding: 15px 40px; font-size: 1.5rem; border-radius: 5px; position: absolute; cursor: pointer; }
+#photo-overlay img {
+  max-width: 320px;
+  border-radius: 10px;
+  opacity: 0;
+  animation: fadeIn 0.6s forwards;
+}
+
+@keyframes fadeIn {
+  to { opacity: 1; }
+}
+
+#proposal-screen img {
+  width: 200px;
+  margin: 10px;
+  border-radius: 10px;
+}
+
+button {
+  font-size: 20px;
+  padding: 10px 25px;
+  margin: 15px;
+  cursor: pointer;
+}
+
