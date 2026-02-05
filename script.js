@@ -8,202 +8,225 @@ const dialogueText = document.getElementById("dialogue-text");
 const photoOverlay = document.getElementById("photo-overlay");
 const memoryPhoto = document.getElementById("memory-photo");
 const proposalScreen = document.getElementById("proposal-screen");
-
 const sectorHUD = document.getElementById("sector");
 const timerHUD = document.getElementById("timer");
 
+// Game State
 let keys = {};
 let frozen = false;
 let stage = 0;
-let team = "";
 let startTime = null;
-let secretInput = [];
+let gameLoopId;
 
 const car = {
-  x: 60,
-  y: 240,
-  velocity: 0,
-  maxSpeed: 4,
-  accel: 0.08,
-  friction: 0.04,
-  emoji: "🏎️"
+    x: 50,
+    y: 220, // Center of lane
+    velocity: 0,
+    maxSpeed: 5,
+    accel: 0.2,
+    friction: 0.05,
+    emoji: "🏎️"
 };
 
+// ITEMS (Positions and Stories)
 const items = [
-  {
-    x: 300,
-    y: 250,
-    emoji: "🍮",
-    message:
-      "Jellyace acquired.\nBack when we were still figuring things out...\nbeing around you already felt like comfort.",
-    photo: null
-  },
-  {
-    x: 520,
-    y: 200,
-    emoji: "📸",
-    message:
-      "A camera.\nNot for perfect moments.\nJust the real ones.",
-    photo: "assets/photo1.jpg"
-  },
-  {
-    x: 720,
-    y: 300,
-    emoji: "🌹",
-    message:
-      "Final sector.\nYou turned chaos into something soft.\nOne kiss from you fixes everything.",
-    photo: "assets/photo2.jpg"
-  }
+    {
+        x: 250, y: 220, emoji: "🍮",
+        message: "Sector 1: Jellyace.\nLike this sweet treat, you bring comfort to my chaotic days.",
+        photo: null // No photo for first item
+    },
+    {
+        x: 500, y: 100, emoji: "📸", // High up
+        message: "Sector 2: The Camera.\nWe don't need perfect poses. I just love capturing the real you.",
+        // Using a placeholder image so it works immediately
+        photo: "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=400" 
+    },
+    {
+        x: 750, y: 350, emoji: "🌹", // Low down
+        message: "Sector 3: The Rose.\nWe are almost at the finish line. Just one question remains...",
+        photo: "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=400"
+    }
 ];
 
-const finishLineX = 860;
+const finishLineX = 820;
 
-// TEAM SELECT
+// --- CONTROLS ---
+
+// Team Selection
 document.querySelectorAll("#team-select button").forEach(btn => {
-  btn.onclick = () => {
-    team = btn.dataset.team;
-    document.body.classList.add(team);
-    car.emoji = team === "ferrari" ? "🐱🏎️" : "🐶🏎️";
-    teamSelect.classList.add("hidden");
-    gameContainer.classList.remove("hidden");
-    startTime = Date.now();
-  };
+    btn.onclick = () => {
+        const team = btn.dataset.team;
+        document.body.className = team; // Set theme
+        car.emoji = team === "ferrari" ? "🐱" : "🐶"; // Avatar
+        
+        teamSelect.classList.add("hidden");
+        gameContainer.classList.remove("hidden");
+        
+        startTime = Date.now();
+        gameLoop(); // Start the loop ONLY after clicking
+    };
 });
 
-document.addEventListener("keydown", e => keys[e.key] = true);
-document.addEventListener("keyup", e => keys[e.key] = false);
+// Key Listeners
+document.addEventListener("keydown", e => keys[e.code] = true);
+document.addEventListener("keyup", e => keys[e.code] = false);
 
+// Spacebar Interaction
 document.addEventListener("keydown", e => {
-  if (e.code === "Space" && frozen) {
-    hideDialogue();
-    stage++;
-    sectorHUD.textContent = `SECTOR ${Math.min(stage + 1, 3)} / 3`;
-  }
+    if (e.code === "Space" && frozen) {
+        hideDialogue();
+        stage++;
+        if (stage < 3) {
+            sectorHUD.textContent = `SECTOR ${stage + 1} / 3`;
+        } else {
+            sectorHUD.textContent = "FINAL LAP";
+        }
+    }
 });
 
-// SECRET BONUS
-const secretCode = [
-  "ArrowUp","ArrowUp","ArrowDown","ArrowDown",
-  "ArrowLeft","ArrowRight","ArrowLeft","ArrowRight"
-];
-
-document.addEventListener("keydown", e => {
-  secretInput.push(e.key);
-  secretInput = secretInput.slice(-secretCode.length);
-  if (secretInput.join() === secretCode.join()) {
-    unlockBonus();
-  }
-});
+// --- CORE FUNCTIONS ---
 
 function showDialogue(item) {
-  frozen = true;
-  dialogueText.textContent = item.message;
-  dialogueBox.classList.remove("hidden");
+    frozen = true;
+    dialogueText.innerText = item.message; // Use innerText for newlines
+    dialogueBox.classList.remove("hidden");
 
-  if (item.photo) {
-    memoryPhoto.src = item.photo;
-    photoOverlay.classList.remove("hidden");
-  }
+    if (item.photo) {
+        memoryPhoto.src = item.photo;
+        photoOverlay.classList.remove("hidden");
+    }
 }
 
 function hideDialogue() {
-  frozen = false;
-  dialogueBox.classList.add("hidden");
-  photoOverlay.classList.add("hidden");
+    frozen = false;
+    dialogueBox.classList.add("hidden");
+    photoOverlay.classList.add("hidden");
 }
 
 function updateTimer() {
-  const t = Math.floor((Date.now() - startTime) / 1000);
-  const m = String(Math.floor(t / 60)).padStart(2, "0");
-  const s = String(t % 60).padStart(2, "0");
-  timerHUD.textContent = `${m}:${s}`;
+    if (!startTime) return;
+    const t = Math.floor((Date.now() - startTime) / 1000);
+    const m = String(Math.floor(t / 60)).padStart(2, "0");
+    const s = String(t % 60).padStart(2, "0");
+    timerHUD.textContent = `${m}:${s}`;
 }
 
 function update() {
-  if (!frozen) {
-    if (keys["ArrowRight"]) car.velocity += car.accel;
-    else car.velocity -= car.friction;
+    if (!frozen) {
+        // Horizontal Movement
+        if (keys["ArrowRight"]) car.velocity += car.accel;
+        else if (keys["ArrowLeft"]) car.velocity -= car.accel; // Added Brake/Reverse
+        else car.velocity -= car.friction; // Coasting
 
-    car.velocity = Math.max(0, Math.min(car.velocity, car.maxSpeed));
-    car.x += car.velocity;
-  }
+        // Vertical Movement (ADDED THIS SO YOU CAN REACH ITEMS)
+        if (keys["ArrowUp"] && car.y > 20) car.y -= 3;
+        if (keys["ArrowDown"] && car.y < canvas.height - 50) car.y += 3;
 
-  const item = items[stage];
-  if (item && Math.abs(car.x - item.x) < 20 && Math.abs(car.y - item.y) < 20) {
-    showDialogue(item);
-  }
+        // Cap speed
+        car.velocity = Math.max(0, Math.min(car.velocity, car.maxSpeed));
+        car.x += car.velocity;
+    }
 
-  if (stage >= items.length && car.x > finishLineX) {
-    endGame();
-  }
+    // Check Item Collision
+    if (stage < items.length) {
+        const item = items[stage];
+        // Distance check (Simple box collision)
+        if (
+            car.x < item.x + 40 &&
+            car.x + 40 > item.x &&
+            car.y < item.y + 40 &&
+            car.y + 40 > item.y
+        ) {
+            showDialogue(item);
+        }
+    }
 
-  updateTimer();
+    // Check Finish Line
+    if (stage >= items.length && car.x > finishLineX) {
+        endGame();
+    }
+
+    updateTimer();
 }
 
 function draw() {
-  ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // Track motion
-  const offset = (Date.now() / 8) % 40;
-  ctx.fillStyle = "#444";
-  for (let y = -40; y < canvas.height; y += 40) {
-    ctx.fillRect(450, y + offset, 6, 20);
-  }
+    // 1. Draw Track Lines (Moving effect)
+    const offset = (Date.now() / 5) % 60; // Speed of lines
+    ctx.fillStyle = "#ffffff";
+    ctx.globalAlpha = 0.2;
+    for (let i = 0; i < canvas.width; i += 60) {
+        ctx.fillRect(i - offset, 100, 30, 4); // Top lane marker
+        ctx.fillRect(i - offset, 400, 30, 4); // Bottom lane marker
+    }
+    ctx.globalAlpha = 1.0;
 
-  // Items
-  if (items[stage]) {
-    const float = Math.sin(Date.now() / 400) * 5;
-    ctx.fillText(items[stage].emoji, items[stage].x, items[stage].y + float);
-  }
+    // 2. Draw Finish Line
+    if (stage >= items.length) {
+        // Checkerboard pattern
+        for (let y = 0; y < canvas.height; y += 40) {
+            ctx.fillStyle = y % 80 === 0 ? "white" : "black";
+            ctx.fillRect(finishLineX, y, 20, 40);
+            ctx.fillStyle = y % 80 === 0 ? "black" : "white";
+            ctx.fillRect(finishLineX + 20, y, 20, 40);
+        }
+    }
 
-  // Finish line
-  if (stage >= items.length) {
-    ctx.fillStyle = "white";
-    ctx.fillRect(finishLineX, 0, 6, canvas.height);
-  }
+    // 3. Draw Items (Only current one)
+    if (stage < items.length) {
+        const item = items[stage];
+        ctx.font = "40px Arial"; // SET FONT SIZE (Critical Fix)
+        ctx.fillText(item.emoji, item.x, item.y + 30);
+        
+        // Helper text
+        ctx.fillStyle = "white";
+        ctx.font = "14px Arial";
+        ctx.fillText("TARGET", item.x - 10, item.y - 10);
+    }
 
-  // Car
-  ctx.fillText(car.emoji, car.x, car.y);
+    // 4. Draw Car
+    ctx.font = "50px Arial"; // Car size
+    ctx.fillText(car.emoji, car.x, car.y + 30);
 }
 
 function gameLoop() {
-  update();
-  draw();
-  requestAnimationFrame(gameLoop);
+    update();
+    draw();
+    if (gameContainer.classList.contains("hidden")) return; // Stop if game ended
+    requestAnimationFrame(gameLoop);
 }
-
-gameLoop();
 
 function endGame() {
-  gameContainer.classList.add("hidden");
-  proposalScreen.classList.remove("hidden");
-  proposalScreen.innerHTML = `
-    <h1>🏁 Our Race So Far</h1>
-    <img src="assets/photo1.jpg">
-    <img src="assets/photo2.jpg">
-    <img src="assets/photo3.jpg">
-    <h2>Will you be my permanent teammate?</h2>
-    <button id="yes">Yes ❤️</button>
-    <button id="no">No</button>
-  `;
+    gameContainer.classList.add("hidden");
+    proposalScreen.classList.remove("hidden");
+    
+    // You can replace these src URLs with your actual photos in the assets folder
+    proposalScreen.innerHTML = `
+        <h1>🏁 P1: POLE POSITION! 🏁</h1>
+        <div style="display:flex; justify-content:center;">
+            <img src="https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=200">
+            <img src="https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=200">
+        </div>
+        <br>
+        <h2>Will you be my Player 2?</h2>
+        <br>
+        <button id="yes">Yes ❤️</button>
+        <button id="no">No</button>
+    `;
 
-  document.getElementById("yes").onclick = () =>
-    alert("Contract signed. Season after season ❤️");
+    document.getElementById("yes").onclick = () => {
+        alert("Yay! Happy Valentine's Day! 🏎️❤️");
+    };
 
-  const noBtn = document.getElementById("no");
-  noBtn.onmouseover = () => {
-    noBtn.style.position = "absolute";
-    noBtn.style.left = Math.random() * 80 + "%";
-    noBtn.style.top = Math.random() * 80 + "%";
-  };
-}
-
-function unlockBonus() {
-  document.body.innerHTML = `
-    <h1>💖 Bonus Lap</h1>
-    <p>I wasn’t looking.</p>
-    <p>You kept showing up.</p>
-    <p><strong>And I fell in love.</strong></p>
-  `;
+    const noBtn = document.getElementById("no");
+    noBtn.onmouseover = () => {
+        // Runaway Button Logic
+        const x = Math.random() * (window.innerWidth - 100);
+        const y = Math.random() * (window.innerHeight - 50);
+        noBtn.style.position = "fixed"; // Fixed is better than absolute here
+        noBtn.style.left = x + "px";
+        noBtn.style.top = y + "px";
+    };
 }
 
