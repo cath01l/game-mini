@@ -1,211 +1,209 @@
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
-const dialogueBox = document.getElementById('dialogue-box');
-const dialogueText = document.getElementById('dialogue-text');
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
 
-canvas.width = 800;
-canvas.height = 600;
+const teamSelect = document.getElementById("team-select");
+const gameContainer = document.getElementById("game-container");
+const dialogueBox = document.getElementById("dialogue-box");
+const dialogueText = document.getElementById("dialogue-text");
+const photoOverlay = document.getElementById("photo-overlay");
+const memoryPhoto = document.getElementById("memory-photo");
+const proposalScreen = document.getElementById("proposal-screen");
 
-// GAME STATE
-let gameState = 'START'; // START, PLAY, DIALOGUE, END
-let currentLevel = 0; // 0=Intro, 1=Jellyace, 2=Camera, 3=Rose, 4=Finish
+const sectorHUD = document.getElementById("sector");
+const timerHUD = document.getElementById("timer");
 
-// PLAYER
-let player = { x: 400, y: 500, size: 40, speed: 5, color: 'red', avatar: '🐱' };
-let keys = { ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false };
+let keys = {};
+let frozen = false;
+let stage = 0;
+let team = "";
+let startTime = null;
+let secretInput = [];
 
-// OBSTACLES (Traffic Cones / Oil)
-const obstacles = [
-    { x: 200, y: 200, w: 50, h: 50, type: 'cone' },
-    { x: 500, y: 350, w: 50, h: 50, type: 'cone' },
-    { x: 300, y: 100, w: 50, h: 50, type: 'cone' },
-    { x: 600, y: 500, w: 50, h: 50, type: 'cone' }
-];
+const car = {
+  x: 60,
+  y: 240,
+  velocity: 0,
+  maxSpeed: 4,
+  accel: 0.08,
+  friction: 0.04,
+  emoji: "🏎️"
+};
 
-// ITEMS (The Story Chapters)
 const items = [
-    { 
-        name: 'Jellyace', emoji: '🍮', x: 100, y: 100, 
-        message: "Radio Check: Jellyace acquired! \nIt's sweet and wobbly... reminds me of how I feel when I see you." 
-    },
-    { 
-        name: 'Camera', emoji: '📸', x: 650, y: 450, 
-        message: "Pit Stop: The Digital Camera. \nWe've captured so many memories, but I think the best ones are yet to come." 
-    },
-    { 
-        name: 'Rose', emoji: '🌹', x: 400, y: 300, 
-        message: "Lap 3: A Rose. \nFor the person who makes my life bloom. We are almost at the finish line!" 
-    },
-    { 
-        name: 'Finish', emoji: '🏁', x: 400, y: 100, 
-        message: "Checkered Flag! \nYou made it. Park the car and look at the screen..." 
-    }
+  {
+    x: 300,
+    y: 250,
+    emoji: "🍮",
+    message:
+      "Jellyace acquired.\nBack when we were still figuring things out...\nbeing around you already felt like comfort.",
+    photo: null
+  },
+  {
+    x: 520,
+    y: 200,
+    emoji: "📸",
+    message:
+      "A camera.\nNot for perfect moments.\nJust the real ones.",
+    photo: "assets/photo1.jpg"
+  },
+  {
+    x: 720,
+    y: 300,
+    emoji: "🌹",
+    message:
+      "Final sector.\nYou turned chaos into something soft.\nOne kiss from you fixes everything.",
+    photo: "assets/photo2.jpg"
+  }
 ];
 
-// --- CORE FUNCTIONS ---
+const finishLineX = 860;
 
-function checkDevice() {
-    if (window.innerWidth < 800) {
-        document.getElementById('mobile-blocker').classList.remove('hidden');
-        document.getElementById('start-screen').classList.add('hidden');
-    }
-}
-checkDevice();
-
-function startGame(team) {
-    document.getElementById('start-screen').classList.add('hidden');
-    document.getElementById('game-container').classList.remove('hidden');
-    
-    if (team === 'ferrari') {
-        player.color = '#ff2800'; 
-        player.avatar = '🐱';
-    } else {
-        player.color = '#b2bec3';
-        player.avatar = '🐶';
-    }
-
-    // Trigger Intro Dialogue
-    showDialogue("Team Radio: Welcome to the track. \nWe need to collect supplies for the big date. First up: Find the sweet fuel!");
-    update();
-}
-
-function showDialogue(text) {
-    gameState = 'DIALOGUE';
-    dialogueBox.classList.remove('hidden');
-    dialogueText.innerText = text;
-}
-
-// Controls
-window.addEventListener('keydown', (e) => {
-    if (keys.hasOwnProperty(e.code)) keys[e.code] = true;
-    
-    // Spacebar to advance dialogue
-    if (e.code === 'Space' && gameState === 'DIALOGUE') {
-        dialogueBox.classList.add('hidden');
-        
-        if (currentLevel >= items.length) {
-            endGame();
-        } else {
-            gameState = 'PLAY';
-        }
-    }
-});
-window.addEventListener('keyup', (e) => {
-    if (keys.hasOwnProperty(e.code)) keys[e.code] = false;
+// TEAM SELECT
+document.querySelectorAll("#team-select button").forEach(btn => {
+  btn.onclick = () => {
+    team = btn.dataset.team;
+    document.body.classList.add(team);
+    car.emoji = team === "ferrari" ? "🐱🏎️" : "🐶🏎️";
+    teamSelect.classList.add("hidden");
+    gameContainer.classList.remove("hidden");
+    startTime = Date.now();
+  };
 });
 
-// --- GAME LOOP ---
+document.addEventListener("keydown", e => keys[e.key] = true);
+document.addEventListener("keyup", e => keys[e.key] = false);
+
+document.addEventListener("keydown", e => {
+  if (e.code === "Space" && frozen) {
+    hideDialogue();
+    stage++;
+    sectorHUD.textContent = `SECTOR ${Math.min(stage + 1, 3)} / 3`;
+  }
+});
+
+// SECRET BONUS
+const secretCode = [
+  "ArrowUp","ArrowUp","ArrowDown","ArrowDown",
+  "ArrowLeft","ArrowRight","ArrowLeft","ArrowRight"
+];
+
+document.addEventListener("keydown", e => {
+  secretInput.push(e.key);
+  secretInput = secretInput.slice(-secretCode.length);
+  if (secretInput.join() === secretCode.join()) {
+    unlockBonus();
+  }
+});
+
+function showDialogue(item) {
+  frozen = true;
+  dialogueText.textContent = item.message;
+  dialogueBox.classList.remove("hidden");
+
+  if (item.photo) {
+    memoryPhoto.src = item.photo;
+    photoOverlay.classList.remove("hidden");
+  }
+}
+
+function hideDialogue() {
+  frozen = false;
+  dialogueBox.classList.add("hidden");
+  photoOverlay.classList.add("hidden");
+}
+
+function updateTimer() {
+  const t = Math.floor((Date.now() - startTime) / 1000);
+  const m = String(Math.floor(t / 60)).padStart(2, "0");
+  const s = String(t % 60).padStart(2, "0");
+  timerHUD.textContent = `${m}:${s}`;
+}
+
 function update() {
-    if (gameState === 'PLAY') {
-        movePlayer();
-        checkCollisions();
-    }
-    draw();
-    requestAnimationFrame(update);
-}
+  if (!frozen) {
+    if (keys["ArrowRight"]) car.velocity += car.accel;
+    else car.velocity -= car.friction;
 
-function movePlayer() {
-    let prevX = player.x;
-    let prevY = player.y;
+    car.velocity = Math.max(0, Math.min(car.velocity, car.maxSpeed));
+    car.x += car.velocity;
+  }
 
-    if (keys.ArrowUp && player.y > 0) player.y -= player.speed;
-    if (keys.ArrowDown && player.y < canvas.height - player.size) player.y += player.speed;
-    if (keys.ArrowLeft && player.x > 0) player.x -= player.speed;
-    if (keys.ArrowRight && player.x < canvas.width - player.size) player.x += player.speed;
+  const item = items[stage];
+  if (item && Math.abs(car.x - item.x) < 20 && Math.abs(car.y - item.y) < 20) {
+    showDialogue(item);
+  }
 
-    // Obstacle Collision (Bounce back)
-    obstacles.forEach(obs => {
-        if (
-            player.x < obs.x + obs.w &&
-            player.x + player.size > obs.x &&
-            player.y < obs.y + obs.h &&
-            player.y + player.size > obs.y
-        ) {
-            player.x = prevX; // Undo move
-            player.y = prevY;
-        }
-    });
-}
+  if (stage >= items.length && car.x > finishLineX) {
+    endGame();
+  }
 
-function checkCollisions() {
-    // Check collision with CURRENT level item only
-    if (currentLevel < items.length) {
-        let item = items[currentLevel];
-        if (
-            player.x < item.x + 40 &&
-            player.x + player.size > item.x &&
-            player.y < item.y + 40 &&
-            player.y + player.size > item.y
-        ) {
-            // Item Found!
-            showDialogue(item.message);
-            currentLevel++;
-        }
-    }
+  updateTimer();
 }
 
 function draw() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.clearRect(0,0,canvas.width,canvas.height);
 
-    // 1. Draw Track
-    ctx.fillStyle = '#636e72'; // Road
-    ctx.beginPath();
-    ctx.roundRect(50, 50, 700, 500, 100);
-    ctx.fill();
-    ctx.fillStyle = '#2d3436'; // Inner Grass (Hole)
-    ctx.beginPath();
-    ctx.roundRect(150, 150, 500, 300, 50);
-    ctx.fill();
+  // Track motion
+  const offset = (Date.now() / 8) % 40;
+  ctx.fillStyle = "#444";
+  for (let y = -40; y < canvas.height; y += 40) {
+    ctx.fillRect(450, y + offset, 6, 20);
+  }
 
-    // 2. Draw Obstacles (Cones)
-    ctx.fillStyle = '#e17055'; // Orange
-    obstacles.forEach(obs => {
-        ctx.beginPath();
-        ctx.moveTo(obs.x + 25, obs.y);
-        ctx.lineTo(obs.x, obs.y + 50);
-        ctx.lineTo(obs.x + 50, obs.y + 50);
-        ctx.fill();
-    });
+  // Items
+  if (items[stage]) {
+    const float = Math.sin(Date.now() / 400) * 5;
+    ctx.fillText(items[stage].emoji, items[stage].x, items[stage].y + float);
+  }
 
-    // 3. Draw CURRENT Item Only (Story Mode)
-    if (currentLevel < items.length) {
-        let item = items[currentLevel];
-        ctx.font = '40px Arial';
-        ctx.fillText(item.emoji, item.x, item.y + 35);
-        
-        // Helper Arrow (optional)
-        ctx.fillStyle = 'white';
-        ctx.font = '12px Arial';
-        ctx.fillText("TARGET", item.x, item.y - 5);
-    }
+  // Finish line
+  if (stage >= items.length) {
+    ctx.fillStyle = "white";
+    ctx.fillRect(finishLineX, 0, 6, canvas.height);
+  }
 
-    // 4. Draw Player
-    ctx.fillStyle = player.color;
-    ctx.beginPath();
-    ctx.roundRect(player.x, player.y, player.size, player.size, 8);
-    ctx.fill();
-    ctx.font = '24px Arial';
-    ctx.fillText(player.avatar, player.x + 5, player.y + 28);
+  // Car
+  ctx.fillText(car.emoji, car.x, car.y);
 }
+
+function gameLoop() {
+  update();
+  draw();
+  requestAnimationFrame(gameLoop);
+}
+
+gameLoop();
 
 function endGame() {
-    gameState = 'END';
-    document.getElementById('game-container').classList.add('hidden');
-    document.getElementById('proposal-screen').classList.remove('hidden');
+  gameContainer.classList.add("hidden");
+  proposalScreen.classList.remove("hidden");
+  proposalScreen.innerHTML = `
+    <h1>🏁 Our Race So Far</h1>
+    <img src="assets/photo1.jpg">
+    <img src="assets/photo2.jpg">
+    <img src="assets/photo3.jpg">
+    <h2>Will you be my permanent teammate?</h2>
+    <button id="yes">Yes ❤️</button>
+    <button id="no">No</button>
+  `;
+
+  document.getElementById("yes").onclick = () =>
+    alert("Contract signed. Season after season ❤️");
+
+  const noBtn = document.getElementById("no");
+  noBtn.onmouseover = () => {
+    noBtn.style.position = "absolute";
+    noBtn.style.left = Math.random() * 80 + "%";
+    noBtn.style.top = Math.random() * 80 + "%";
+  };
 }
 
-// Runaway No Button
-const noBtn = document.getElementById('no-btn');
-const yesBtn = document.getElementById('yes-btn');
+function unlockBonus() {
+  document.body.innerHTML = `
+    <h1>💖 Bonus Lap</h1>
+    <p>I wasn’t looking.</p>
+    <p>You kept showing up.</p>
+    <p><strong>And I fell in love.</strong></p>
+  `;
+}
 
-noBtn.addEventListener('mouseover', () => {
-    const x = Math.random() * (window.innerWidth - 200);
-    const y = Math.random() * (window.innerHeight - 100);
-    noBtn.style.position = 'absolute';
-    noBtn.style.left = `${x}px`;
-    noBtn.style.top = `${y}px`;
-});
-
-yesBtn.addEventListener('click', () => {
-    alert("Happy Valentine's Day! ❤️🏎️");
-});
