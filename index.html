@@ -1,30 +1,138 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8" />
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Grand Prix of Us</title>
-    <link rel="stylesheet" href="style.css" />
+    <title>The Grand Prix of Us 🏎️</title>
+    <style>
+        /* --- CSS STYLES --- */
+        body {
+            margin: 0;
+            background: #0d0f1a;
+            color: white;
+            font-family: "Courier New", monospace;
+            text-align: center;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .hidden { display: none !important; }
+
+        /* Start Screen */
+        #team-select { margin-top: 80px; }
+        h1 { color: #ff4d6d; text-shadow: 0 0 15px #ff4d6d; margin-bottom: 40px; }
+        
+        .team-btn {
+            font-size: 20px;
+            padding: 20px 40px;
+            margin: 20px;
+            cursor: pointer;
+            background: #1a1d2e;
+            color: white;
+            border: 2px solid white;
+            border-radius: 10px;
+            transition: 0.3s;
+            font-family: inherit;
+        }
+        .team-btn:hover { background: #ff4d6d; border-color: #ff4d6d; transform: scale(1.05); }
+
+        /* Game Area */
+        #game-container {
+            position: relative;
+            margin-top: 20px;
+        }
+
+        #hud {
+            display: flex;
+            justify-content: space-between;
+            width: 900px;
+            margin-bottom: 10px;
+            font-size: 24px;
+            font-weight: bold;
+            color: #ff4d6d;
+        }
+
+        canvas {
+            background: #1a1d2e;
+            border: 4px solid #ff4d6d;
+            border-radius: 8px;
+            box-shadow: 0 0 30px rgba(255, 77, 109, 0.2);
+            display: block;
+        }
+
+        /* Dialogue Box */
+        #dialogue-box {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.95);
+            padding: 25px;
+            border: 2px solid white;
+            border-radius: 8px;
+            text-align: left;
+            z-index: 20;
+        }
+
+        #dialogue-text { font-size: 20px; line-height: 1.6; margin: 0; }
+        
+        .hint {
+            display: block;
+            margin-top: 15px;
+            font-size: 14px;
+            color: #ff4d6d;
+            animation: blink 1s infinite;
+            text-align: right;
+        }
+        @keyframes blink { 50% { opacity: 0; } }
+
+        /* Photo Pop-up */
+        #photo-overlay {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 15px;
+            border-radius: 12px;
+            z-index: 30;
+            box-shadow: 0 0 50px rgba(0,0,0,0.8);
+        }
+        #photo-overlay img {
+            max-width: 450px;
+            max-height: 350px;
+            border-radius: 4px;
+            display: block;
+        }
+
+        /* Proposal Screen */
+        #proposal-screen { margin-top: 50px; }
+        #yes-btn { background: #2ecc71; border: none; color: white; padding: 15px 40px; font-size: 24px; border-radius: 8px; cursor: pointer; margin: 20px; }
+        #no-btn { background: #e74c3c; border: none; color: white; padding: 15px 40px; font-size: 24px; border-radius: 8px; position: relative; margin: 20px; cursor: pointer; }
+    </style>
 </head>
 <body>
 
     <div id="team-select">
-        <h1>🏁 Radio Check 🏁</h1>
-        <p>Driver, choose your team:</p>
-        <button data-team="ferrari">🐱 Team Ferrari</button>
-        <button data-team="mercedes">🐶 Team Mercedes</button>
+        <h1>🏁 Radio Check... 🏁</h1>
+        <p style="font-size: 1.2rem;">Driver, are you ready?</p>
+        <p>Select your team to start the engine:</p>
+        <button class="team-btn" onclick="startGame('ferrari')">🐱 Team Ferrari</button>
+        <button class="team-btn" onclick="startGame('mercedes')">🐶 Team Mercedes</button>
     </div>
 
     <div id="game-container" class="hidden">
         <div id="hud">
-            <span id="sector">SECTOR 1 / 3</span>
+            <span id="sector-display">SECTOR 1</span>
             <span id="timer">00:00</span>
         </div>
-
+        
         <canvas id="gameCanvas" width="900" height="500"></canvas>
 
         <div id="photo-overlay" class="hidden">
-            <img id="memory-photo" alt="Memory" />
+            <img id="memory-photo" src="" alt="Memory">
         </div>
 
         <div id="dialogue-box" class="hidden">
@@ -33,9 +141,238 @@
         </div>
     </div>
 
-    <div id="proposal-screen" class="hidden"></div>
+    <div id="proposal-screen" class="hidden">
+        <h1>🏁 P1: POLE POSITION! 🏁</h1>
+        <p style="font-size: 1.5rem; margin: 30px;">You navigated every turn, dodged every obstacle,<br>and crossed the line perfectly.</p>
+        
+        <h2 style="font-size: 2rem; color: #ff4d6d;">Will you be my Player 2?</h2>
+        
+        <button id="yes-btn">Yes! ❤️</button>
+        <button id="no-btn">No</button>
+    </div>
 
-    <script src="game.js"></script>
+    <script>
+        /* --- JAVASCRIPT GAME LOGIC --- */
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+
+        // UI Elements
+        const teamSelectScreen = document.getElementById("team-select");
+        const gameContainer = document.getElementById("game-container");
+        const proposalScreen = document.getElementById("proposal-screen");
+        const dialogueBox = document.getElementById("dialogue-box");
+        const dialogueText = document.getElementById("dialogue-text");
+        const photoOverlay = document.getElementById("photo-overlay");
+        const memoryPhoto = document.getElementById("memory-photo");
+        const sectorDisplay = document.getElementById("sector-display");
+        const timerDisplay = document.getElementById("timer");
+
+        // Game Variables
+        let keys = {};
+        let frozen = false;
+        let stage = 0;
+        let startTime = null;
+        let gameLoopId;
+
+        // Player Car
+        const car = {
+            x: 50, y: 220, 
+            width: 50, height: 30,
+            velocity: 0, maxSpeed: 6, accel: 0.3, friction: 0.08,
+            emoji: "🏎️"
+        };
+
+        // Items (The Story Chapters)
+        // Note: You can replace the 'photo' URLs with links to your own uploaded images!
+        const items = [
+            {
+                x: 250, y: 100, emoji: "🍮",
+                message: "Sector 1 Clear: Jellyace Acquired.\n\nJust like this sweet treat, you bring comfort to my chaotic days. You are my fuel.",
+                photo: null 
+            },
+            {
+                x: 550, y: 350, emoji: "📸",
+                message: "Sector 2 Clear: The Camera.\n\nWe don't need perfect poses. I love capturing the real, unfiltered you. That's my favorite view.",
+                // Placeholder Cat Image - Replace with your photo link if you want
+                photo: "https://images.unsplash.com/photo-1533738363-b7f9aef128ce?w=400" 
+            },
+            {
+                x: 800, y: 220, emoji: "🌹",
+                message: "Sector 3 Clear: The Rose.\n\nWe are almost at the finish line. One final question remains...",
+                // Placeholder Rose Image
+                photo: "https://images.unsplash.com/photo-1496062031456-07b8f162a322?w=400"
+            }
+        ];
+        
+        const finishLineX = 850;
+
+        // --- 1. START GAME ---
+        function startGame(team) {
+            // Hide Menu, Show Game
+            teamSelectScreen.classList.add("hidden");
+            gameContainer.classList.remove("hidden");
+            
+            // Set Avatar based on choice
+            if (team === 'ferrari') {
+                car.emoji = "🐱";
+            } else {
+                car.emoji = "🐶";
+            }
+
+            startTime = Date.now();
+            
+            // Start the Engine
+            window.requestAnimationFrame(update);
+        }
+
+        // --- 2. CONTROLS ---
+        window.addEventListener("keydown", (e) => {
+            keys[e.code] = true;
+            
+            // Advance Dialogue with Spacebar
+            if (e.code === "Space" && frozen) {
+                hideDialogue();
+                stage++;
+                if (stage < 3) sectorDisplay.innerText = `SECTOR ${stage + 1}`;
+                else sectorDisplay.innerText = "FINAL LAP";
+            }
+        });
+        
+        window.addEventListener("keyup", (e) => keys[e.code] = false);
+
+        // --- 3. DIALOGUE SYSTEM ---
+        function showDialogue(item) {
+            frozen = true; // Pause game
+            dialogueText.innerText = item.message;
+            dialogueBox.classList.remove("hidden");
+            
+            if (item.photo) {
+                memoryPhoto.src = item.photo;
+                photoOverlay.classList.remove("hidden");
+            }
+        }
+
+        function hideDialogue() {
+            frozen = false; // Unpause
+            dialogueBox.classList.add("hidden");
+            photoOverlay.classList.add("hidden");
+        }
+
+        // --- 4. MAIN LOOP ---
+        function update() {
+            // A. Move Car (Only if not frozen)
+            if (!frozen) {
+                // Horizontal
+                if (keys["ArrowRight"]) car.velocity += car.accel;
+                else if (keys["ArrowLeft"]) car.velocity -= car.accel;
+                else car.velocity -= car.friction;
+
+                // Vertical
+                if (keys["ArrowUp"] && car.y > 10) car.y -= 4;
+                if (keys["ArrowDown"] && car.y < canvas.height - 40) car.y += 4;
+
+                // Physics Caps
+                car.velocity = Math.max(0, Math.min(car.velocity, car.maxSpeed));
+                car.x += car.velocity;
+            }
+
+            // B. Check Collisions with Items
+            if (stage < items.length) {
+                let item = items[stage];
+                // Simple box collision
+                if (car.x < item.x + 50 && car.x + 50 > item.x &&
+                    car.y < item.y + 50 && car.y + 30 > item.y) {
+                    showDialogue(item);
+                    // Push car back slightly so it doesn't trigger again immediately
+                    car.x -= 20; 
+                    car.velocity = 0;
+                }
+            }
+
+            // C. Check Finish Line
+            if (stage >= items.length && car.x > finishLineX) {
+                endGame();
+                return; // Stop loop
+            }
+
+            // D. Update Timer
+            let elapsed = Math.floor((Date.now() - startTime) / 1000);
+            let mins = String(Math.floor(elapsed / 60)).padStart(2, '0');
+            let secs = String(elapsed % 60).padStart(2, '0');
+            timerDisplay.innerText = `${mins}:${secs}`;
+
+            draw();
+            window.requestAnimationFrame(update);
+        }
+
+        // --- 5. DRAWING ---
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw Track Lines
+            ctx.fillStyle = "rgba(255, 255, 255, 0.2)";
+            let dashOffset = (Date.now() / 4) % 100;
+            for (let i = 0; i < canvas.width; i += 100) {
+                ctx.fillRect(i - dashOffset, 166, 50, 4);
+                ctx.fillRect(i - dashOffset, 332, 50, 4);
+            }
+
+            // Draw Finish Line (if ready)
+            if (stage >= items.length) {
+                for (let y = 0; y < canvas.height; y += 40) {
+                    ctx.fillStyle = (y / 40) % 2 == 0 ? "white" : "black";
+                    ctx.fillRect(finishLineX, y, 20, 40);
+                    ctx.fillStyle = (y / 40) % 2 == 0 ? "black" : "white";
+                    ctx.fillRect(finishLineX + 20, y, 20, 40);
+                }
+            }
+
+            // Draw Current Item
+            if (stage < items.length) {
+                let item = items[stage];
+                ctx.font = "40px Arial";
+                ctx.fillText(item.emoji, item.x, item.y + 30);
+                
+                // "Target" label
+                ctx.fillStyle = "#ff4d6d";
+                ctx.font = "16px Courier New";
+                ctx.fillText("TARGET", item.x - 10, item.y - 10);
+            }
+
+            // Draw Car
+            ctx.font = "50px Arial";
+            ctx.fillText(car.emoji, car.x, car.y + 40);
+        }
+
+        // --- 6. END GAME ---
+        function endGame() {
+            gameContainer.classList.add("hidden");
+            proposalScreen.classList.remove("hidden");
+            setupRunawayButton();
+        }
+
+        // --- 7. BUTTON LOGIC ---
+        document.getElementById("yes-btn").addEventListener("click", () => {
+            alert("Yay! I'll see you on Valentine's Day! ❤️🏎️");
+        });
+
+        function setupRunawayButton() {
+            const noBtn = document.getElementById("no-btn");
+            
+            // Run away logic
+            const moveBtn = () => {
+                const x = Math.random() * (window.innerWidth - 200);
+                const y = Math.random() * (window.innerHeight - 100);
+                noBtn.style.position = "fixed";
+                noBtn.style.left = x + "px";
+                noBtn.style.top = y + "px";
+            };
+
+            noBtn.addEventListener("mouseover", moveBtn); // For Laptop mouse
+            noBtn.addEventListener("touchstart", moveBtn); // For Touch (just in case)
+        }
+
+    </script>
 </body>
 </html>
 
