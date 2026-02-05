@@ -10,34 +10,37 @@
 
     <div id="mobile-blocker" class="hidden">
         <h1>🛑 Pit Stop! 🛑</h1>
-        <p>This race track is too big for a phone.</p>
-        <p>Please open this link on your <b>Laptop</b> to play! 💻</p>
+        <p>This track is too complex for mobile.</p>
+        <p>Please use your <b>Laptop</b> for the full experience! 💻</p>
     </div>
 
     <div id="start-screen">
-        <h1>🏁 The Valentine Grand Prix 🏁</h1>
-        <p>Choose your Driver:</p>
+        <h1>🏁 The Grand Prix of Us 🏁</h1>
+        <p>Welcome, Driver. The track is ready.</p>
+        <p>Select your team to begin the season:</p>
         <div class="team-select">
             <button onclick="startGame('ferrari')">
-                🐱<br>Team Ferrari
+                🐱<br>Scuderia Ferrari
             </button>
             <button onclick="startGame('mercedes')">
-                🐶<br>Team Mercedes
+                🐶<br>Mercedes AMG
             </button>
         </div>
-        <p class="instructions">Use <b>Arrow Keys</b> to Drive!</p>
+        <p class="instructions">Controls: <b>Arrow Keys</b> to Drive | <b>Spacebar</b> for Radio/Dialogue</p>
     </div>
 
     <div id="game-container" class="hidden">
-        <div id="hud">
-            <span>Items: <span id="item-count">0</span>/3</span>
-        </div>
         <canvas id="gameCanvas"></canvas>
+        
+        <div id="dialogue-box" class="hidden">
+            <div id="dialogue-text">Radio Check... Is this on?</div>
+            <div class="continue-hint">Press [SPACE] to continue</div>
+        </div>
     </div>
 
     <div id="proposal-screen" class="hidden">
-        <h1>🏆 RACE FINISHED! 🏆</h1>
-        <p>You collected the Jellyace, Camera, and Rose!</p>
+        <h1>🏆 POLE POSITION! 🏆</h1>
+        <p>You navigated every turn, dodge every obstacle, and crossed the line.</p>
         <p class="big-text">Will you be my<br>Player 2?</p>
         <div class="buttons">
             <button id="yes-btn">Yes! ❤️</button>
