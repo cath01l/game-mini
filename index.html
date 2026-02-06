@@ -3,373 +3,447 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Grand Prix of Us 🏎️</title>
+    <title>Proposal Tetris 🧱❤️</title>
     <style>
-        /* --- CSS STYLES --- */
+        /* --- 1. VISUAL STYLE --- */
         body {
-            margin: 0;
-            background: #0d0f1a;
-            color: white;
-            font-family: "Courier New", monospace;
-            text-align: center;
-            overflow: hidden;
+            background: #202028;
+            color: #fff;
+            font-family: 'Courier New', Courier, monospace;
             display: flex;
             flex-direction: column;
             align-items: center;
-            min-height: 100vh;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
         }
 
+        /* UI Overlays */
+        .screen {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(13, 15, 26, 0.95);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+        }
         .hidden { display: none !important; }
 
-        /* Start Screen */
-        #team-select { margin-top: 80px; }
-        h1 { color: #ff4d6d; text-shadow: 0 0 15px #ff4d6d; margin-bottom: 40px; }
-        
-        .team-btn {
-            font-size: 20px;
-            padding: 20px 40px;
-            margin: 20px;
-            cursor: pointer;
-            background: #1a1d2e;
+        h1 { color: #ff4d6d; text-shadow: 0 0 10px #ff4d6d; margin-bottom: 20px; text-align: center; }
+        p { font-size: 1.2rem; max-width: 600px; text-align: center; line-height: 1.5; margin: 10px 20px; }
+
+        /* Buttons */
+        .btn {
+            background: transparent;
             color: white;
-            border: 2px solid white;
-            border-radius: 10px;
-            transition: 0.3s;
+            border: 2px solid #ff4d6d;
+            padding: 15px 30px;
+            font-size: 1.2rem;
+            margin: 10px;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: 0.2s;
             font-family: inherit;
         }
-        .team-btn:hover { background: #ff4d6d; border-color: #ff4d6d; transform: scale(1.05); }
+        .btn:hover { background: #ff4d6d; color: black; transform: scale(1.1); }
 
-        /* Game Area */
-        #game-container {
-            position: relative;
-            margin-top: 20px;
-        }
-
-        #hud {
+        /* Game Board Layout */
+        #game-layout {
             display: flex;
-            justify-content: space-between;
-            width: 900px;
-            margin-bottom: 10px;
-            font-size: 24px;
-            font-weight: bold;
-            color: #ff4d6d;
+            gap: 20px;
+            align-items: flex-start;
         }
 
         canvas {
-            background: #1a1d2e;
-            border: 4px solid #ff4d6d;
-            border-radius: 8px;
-            box-shadow: 0 0 30px rgba(255, 77, 109, 0.2);
-            display: block;
+            border: 4px solid #fff;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            background-color: #000;
         }
 
-        /* Dialogue Box */
+        #stats {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            font-size: 1.5rem;
+            text-align: left;
+        }
+        .stat-label { font-size: 1rem; color: #888; }
+
+        /* Dialogue Box (Pop-up) */
         #dialogue-box {
             position: absolute;
-            bottom: 20px;
-            left: 20px;
-            right: 20px;
-            background: rgba(0, 0, 0, 0.95);
-            padding: 25px;
-            border: 2px solid white;
-            border-radius: 8px;
-            text-align: left;
+            background: #fff;
+            color: #000;
+            padding: 30px;
+            border-radius: 10px;
+            border: 4px solid #ff4d6d;
+            max-width: 500px;
+            text-align: center;
+            box-shadow: 0 0 50px rgba(0,0,0,0.8);
             z-index: 20;
         }
+        #dialogue-img {
+            max-width: 100%;
+            height: 200px;
+            object-fit: cover;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            display: block;
+            margin: 0 auto 15px auto;
+        }
 
-        #dialogue-text { font-size: 20px; line-height: 1.6; margin: 0; }
+        /* Team Themes */
+        body.ferrari canvas { border-color: #ff2800; }
+        body.mercedes canvas { border-color: #00d2be; }
         
-        .hint {
-            display: block;
-            margin-top: 15px;
-            font-size: 14px;
-            color: #ff4d6d;
-            animation: blink 1s infinite;
-            text-align: right;
-        }
-        @keyframes blink { 50% { opacity: 0; } }
-
-        /* Photo Pop-up */
-        #photo-overlay {
-            position: absolute;
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            background: white;
-            padding: 15px;
-            border-radius: 12px;
-            z-index: 30;
-            box-shadow: 0 0 50px rgba(0,0,0,0.8);
-        }
-        #photo-overlay img {
-            max-width: 450px;
-            max-height: 350px;
-            border-radius: 4px;
-            display: block;
-        }
-
-        /* Proposal Screen */
-        #proposal-screen { margin-top: 50px; }
-        #yes-btn { background: #2ecc71; border: none; color: white; padding: 15px 40px; font-size: 24px; border-radius: 8px; cursor: pointer; margin: 20px; }
-        #no-btn { background: #e74c3c; border: none; color: white; padding: 15px 40px; font-size: 24px; border-radius: 8px; position: relative; margin: 20px; cursor: pointer; }
+        /* Proposal Buttons */
+        #no-btn { position: relative; }
     </style>
 </head>
 <body>
 
-    <div id="team-select">
-        <h1>🏁 Radio Check... 🏁</h1>
-        <p style="font-size: 1.2rem;">Driver, are you ready?</p>
-        <p>Select your team to start the engine:</p>
-        <button class="team-btn" onclick="startGame('ferrari')">🐱 Team Ferrari</button>
-        <button class="team-btn" onclick="startGame('mercedes')">🐶 Team Mercedes</button>
-    </div>
-
-    <div id="game-container" class="hidden">
-        <div id="hud">
-            <span id="sector-display">SECTOR 1</span>
-            <span id="timer">00:00</span>
-        </div>
-        
-        <canvas id="gameCanvas" width="900" height="500"></canvas>
-
-        <div id="photo-overlay" class="hidden">
-            <img id="memory-photo" src="" alt="Memory">
-        </div>
-
-        <div id="dialogue-box" class="hidden">
-            <p id="dialogue-text"></p>
-            <span class="hint">Press [SPACE] to continue</span>
+    <div id="start-screen" class="screen">
+        <h1>🏁 PUZZLE QUALIFYING 🏁</h1>
+        <p>Before we can race, we must fit the pieces together.</p>
+        <p>Select your team to begin:</p>
+        <div>
+            <button class="btn" onclick="setTeam('ferrari')">🐱 Team Ferrari</button>
+            <button class="btn" onclick="setTeam('mercedes')">🐶 Team Mercedes</button>
         </div>
     </div>
 
-    <div id="proposal-screen" class="hidden">
-        <h1>🏁 P1: POLE POSITION! 🏁</h1>
-        <p style="font-size: 1.5rem; margin: 30px;">You navigated every turn, dodged every obstacle,<br>and crossed the line perfectly.</p>
-        
-        <h2 style="font-size: 2rem; color: #ff4d6d;">Will you be my Player 2?</h2>
-        
-        <button id="yes-btn">Yes! ❤️</button>
-        <button id="no-btn">No</button>
+    <div id="game-layout" class="hidden">
+        <div id="stats">
+            <div>
+                <div class="stat-label">LEVEL</div>
+                <div id="level-display">1 / 3</div>
+            </div>
+            <div>
+                <div class="stat-label">LINES LEFT</div>
+                <div id="lines-display">2</div>
+            </div>
+            <div style="margin-top:20px; font-size: 1rem; opacity: 0.7;">
+                Controls:<br>⬅️ ➡️ Move<br>⬆️ Rotate<br>⬇️ Drop
+            </div>
+        </div>
+        <canvas id="tetris" width="240" height="400"></canvas>
+    </div>
+
+    <div id="dialogue-box" class="hidden">
+        <h2 id="dialogue-title">ITEM UNLOCKED</h2>
+        <img id="dialogue-img" src="" alt="Memory">
+        <p id="dialogue-text">...</p>
+        <button class="btn" onclick="nextLevel()">CONTINUE ❤️</button>
+    </div>
+
+    <div id="proposal-screen" class="screen hidden">
+        <h1>🏆 GRAND PRIX WINNER 🏆</h1>
+        <p>You cleared every line. You fit perfectly into my life.</p>
+        <h2 style="color:#ff4d6d; font-size: 2rem;">Will you be my Player 2?</h2>
+        <div>
+            <button class="btn" onclick="alert('Happy Valentine\'s Day! I love you! ❤️')">YES! ❤️</button>
+            <button class="btn" id="no-btn">NO</button>
+        </div>
     </div>
 
     <script>
-        /* --- JAVASCRIPT GAME LOGIC --- */
-        const canvas = document.getElementById("gameCanvas");
-        const ctx = canvas.getContext("2d");
+        /* --- TETRIS ENGINE --- */
+        const canvas = document.getElementById('tetris');
+        const context = canvas.getContext('2d');
+        context.scale(20, 20); // Scale up everything 20x
 
-        // UI Elements
-        const teamSelectScreen = document.getElementById("team-select");
-        const gameContainer = document.getElementById("game-container");
-        const proposalScreen = document.getElementById("proposal-screen");
-        const dialogueBox = document.getElementById("dialogue-box");
-        const dialogueText = document.getElementById("dialogue-text");
-        const photoOverlay = document.getElementById("photo-overlay");
-        const memoryPhoto = document.getElementById("memory-photo");
-        const sectorDisplay = document.getElementById("sector-display");
-        const timerDisplay = document.getElementById("timer");
-
-        // Game Variables
-        let keys = {};
-        let frozen = false;
-        let stage = 0;
-        let startTime = null;
-        let gameLoopId;
-
-        // Player Car
-        const car = {
-            x: 50, y: 220, 
-            width: 50, height: 30,
-            velocity: 0, maxSpeed: 6, accel: 0.3, friction: 0.08,
-            emoji: "🏎️"
-        };
-
-        // Items (The Story Chapters)
-        // Note: You can replace the 'photo' URLs with links to your own uploaded images!
-        const items = [
+        // Story Data
+        const storyChapters = [
             {
-                x: 250, y: 100, emoji: "🍮",
-                message: "Sector 1 Clear: Jellyace Acquired.\n\nJust like this sweet treat, you bring comfort to my chaotic days. You are my fuel.",
-                photo: null 
+                linesNeeded: 2,
+                title: "Chapter 1: The Fuel",
+                text: "Jellyace acquired. Like this sweet treat, you bring comfort to my chaotic days.",
+                // Placeholder image - replace later
+                img: "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=400"
             },
             {
-                x: 550, y: 350, emoji: "📸",
-                message: "Sector 2 Clear: The Camera.\n\nWe don't need perfect poses. I love capturing the real, unfiltered you. That's my favorite view.",
-                // Placeholder Cat Image - Replace with your photo link if you want
-                photo: "https://images.unsplash.com/photo-1533738363-b7f9aef128ce?w=400" 
+                linesNeeded: 2,
+                title: "Chapter 2: The Focus",
+                text: "Camera acquired. I don't need perfect poses. I just love capturing the real you.",
+                img: "https://images.unsplash.com/photo-1533738363-b7f9aef128ce?w=400"
             },
             {
-                x: 800, y: 220, emoji: "🌹",
-                message: "Sector 3 Clear: The Rose.\n\nWe are almost at the finish line. One final question remains...",
-                // Placeholder Rose Image
-                photo: "https://images.unsplash.com/photo-1496062031456-07b8f162a322?w=400"
+                linesNeeded: 2,
+                title: "Chapter 3: The Finish",
+                text: "The Rose. We've built this foundation block by block. Now, for the final question...",
+                img: "https://images.unsplash.com/photo-1496062031456-07b8f162a322?w=400"
             }
         ];
-        
-        const finishLineX = 850;
 
-        // --- 1. START GAME ---
-        function startGame(team) {
-            // Hide Menu, Show Game
-            teamSelectScreen.classList.add("hidden");
-            gameContainer.classList.remove("hidden");
-            
-            // Set Avatar based on choice
-            if (team === 'ferrari') {
-                car.emoji = "🐱";
-            } else {
-                car.emoji = "🐶";
-            }
+        let currentChapter = 0;
+        let linesClearedInStage = 0;
+        let gamePaused = false;
 
-            startTime = Date.now();
-            
-            // Start the Engine
-            window.requestAnimationFrame(update);
-        }
+        // Colors for pieces
+        const colors = [
+            null,
+            '#FF0D72', // T
+            '#0DC2FF', // I
+            '#0DFF72', // S
+            '#F538FF', // Z
+            '#FF8E0D', // L
+            '#FFE138', // J
+            '#3877FF', // O
+        ];
 
-        // --- 2. CONTROLS ---
-        window.addEventListener("keydown", (e) => {
-            keys[e.code] = true;
-            
-            // Advance Dialogue with Spacebar
-            if (e.code === "Space" && frozen) {
-                hideDialogue();
-                stage++;
-                if (stage < 3) sectorDisplay.innerText = `SECTOR ${stage + 1}`;
-                else sectorDisplay.innerText = "FINAL LAP";
-            }
-        });
-        
-        window.addEventListener("keyup", (e) => keys[e.code] = false);
-
-        // --- 3. DIALOGUE SYSTEM ---
-        function showDialogue(item) {
-            frozen = true; // Pause game
-            dialogueText.innerText = item.message;
-            dialogueBox.classList.remove("hidden");
-            
-            if (item.photo) {
-                memoryPhoto.src = item.photo;
-                photoOverlay.classList.remove("hidden");
+        // Shapes
+        function createPiece(type) {
+            if (type === 'I') {
+                return [ [0, 1, 0, 0], [0, 1, 0, 0], [0, 1, 0, 0], [0, 1, 0, 0], ];
+            } else if (type === 'L') {
+                return [ [0, 2, 0], [0, 2, 0], [0, 2, 2], ];
+            } else if (type === 'J') {
+                return [ [0, 3, 0], [0, 3, 0], [3, 3, 0], ];
+            } else if (type === 'O') {
+                return [ [4, 4], [4, 4], ];
+            } else if (type === 'Z') {
+                return [ [5, 5, 0], [0, 5, 5], [0, 0, 0], ];
+            } else if (type === 'S') {
+                return [ [0, 6, 6], [6, 6, 0], [0, 0, 0], ];
+            } else if (type === 'T') {
+                return [ [0, 7, 0], [7, 7, 7], [0, 0, 0], ];
             }
         }
 
-        function hideDialogue() {
-            frozen = false; // Unpause
-            dialogueBox.classList.add("hidden");
-            photoOverlay.classList.add("hidden");
-        }
+        // --- GAME LOGIC ---
 
-        // --- 4. MAIN LOOP ---
-        function update() {
-            // A. Move Car (Only if not frozen)
-            if (!frozen) {
-                // Horizontal
-                if (keys["ArrowRight"]) car.velocity += car.accel;
-                else if (keys["ArrowLeft"]) car.velocity -= car.accel;
-                else car.velocity -= car.friction;
-
-                // Vertical
-                if (keys["ArrowUp"] && car.y > 10) car.y -= 4;
-                if (keys["ArrowDown"] && car.y < canvas.height - 40) car.y += 4;
-
-                // Physics Caps
-                car.velocity = Math.max(0, Math.min(car.velocity, car.maxSpeed));
-                car.x += car.velocity;
-            }
-
-            // B. Check Collisions with Items
-            if (stage < items.length) {
-                let item = items[stage];
-                // Simple box collision
-                if (car.x < item.x + 50 && car.x + 50 > item.x &&
-                    car.y < item.y + 50 && car.y + 30 > item.y) {
-                    showDialogue(item);
-                    // Push car back slightly so it doesn't trigger again immediately
-                    car.x -= 20; 
-                    car.velocity = 0;
+        function arenaSweep() {
+            let rowCount = 1;
+            outer: for (let y = arena.length - 1; y > 0; --y) {
+                for (let x = 0; x < arena[y].length; ++x) {
+                    if (arena[y][x] === 0) {
+                        continue outer;
+                    }
                 }
-            }
 
-            // C. Check Finish Line
-            if (stage >= items.length && car.x > finishLineX) {
-                endGame();
-                return; // Stop loop
-            }
-
-            // D. Update Timer
-            let elapsed = Math.floor((Date.now() - startTime) / 1000);
-            let mins = String(Math.floor(elapsed / 60)).padStart(2, '0');
-            let secs = String(elapsed % 60).padStart(2, '0');
-            timerDisplay.innerText = `${mins}:${secs}`;
-
-            draw();
-            window.requestAnimationFrame(update);
-        }
-
-        // --- 5. DRAWING ---
-        function draw() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            // Draw Track Lines
-            ctx.fillStyle = "rgba(255, 255, 255, 0.2)";
-            let dashOffset = (Date.now() / 4) % 100;
-            for (let i = 0; i < canvas.width; i += 100) {
-                ctx.fillRect(i - dashOffset, 166, 50, 4);
-                ctx.fillRect(i - dashOffset, 332, 50, 4);
-            }
-
-            // Draw Finish Line (if ready)
-            if (stage >= items.length) {
-                for (let y = 0; y < canvas.height; y += 40) {
-                    ctx.fillStyle = (y / 40) % 2 == 0 ? "white" : "black";
-                    ctx.fillRect(finishLineX, y, 20, 40);
-                    ctx.fillStyle = (y / 40) % 2 == 0 ? "black" : "white";
-                    ctx.fillRect(finishLineX + 20, y, 20, 40);
-                }
-            }
-
-            // Draw Current Item
-            if (stage < items.length) {
-                let item = items[stage];
-                ctx.font = "40px Arial";
-                ctx.fillText(item.emoji, item.x, item.y + 30);
+                // Row is full
+                const row = arena.splice(y, 1)[0].fill(0);
+                arena.unshift(row);
+                ++y;
                 
-                // "Target" label
-                ctx.fillStyle = "#ff4d6d";
-                ctx.font = "16px Courier New";
-                ctx.fillText("TARGET", item.x - 10, item.y - 10);
+                // Story Logic
+                linesClearedInStage++;
+                updateHUD();
+                checkStoryProgress();
             }
-
-            // Draw Car
-            ctx.font = "50px Arial";
-            ctx.fillText(car.emoji, car.x, car.y + 40);
         }
 
-        // --- 6. END GAME ---
-        function endGame() {
-            gameContainer.classList.add("hidden");
-            proposalScreen.classList.remove("hidden");
-            setupRunawayButton();
+        function checkStoryProgress() {
+            const chapter = storyChapters[currentChapter];
+            if (linesClearedInStage >= chapter.linesNeeded) {
+                gamePaused = true;
+                showDialogue(chapter);
+            }
         }
 
-        // --- 7. BUTTON LOGIC ---
-        document.getElementById("yes-btn").addEventListener("click", () => {
-            alert("Yay! I'll see you on Valentine's Day! ❤️🏎️");
+        function showDialogue(chapter) {
+            document.getElementById('dialogue-box').classList.remove('hidden');
+            document.getElementById('dialogue-title').innerText = chapter.title;
+            document.getElementById('dialogue-text').innerText = chapter.text;
+            document.getElementById('dialogue-img').src = chapter.img;
+        }
+
+        function nextLevel() {
+            document.getElementById('dialogue-box').classList.add('hidden');
+            linesClearedInStage = 0;
+            currentChapter++;
+            
+            if (currentChapter >= storyChapters.length) {
+                // Game Over - Win!
+                document.getElementById('game-layout').classList.add('hidden');
+                document.getElementById('proposal-screen').classList.remove('hidden');
+                initRunawayButton();
+            } else {
+                gamePaused = false;
+                arena.forEach(row => row.fill(0)); // Clear board for next level
+                updateHUD();
+                update();
+            }
+        }
+
+        function updateHUD() {
+            const needed = storyChapters[currentChapter].linesNeeded;
+            const left = needed - linesClearedInStage;
+            document.getElementById('lines-display').innerText = Math.max(0, left);
+            document.getElementById('level-display').innerText = `${currentChapter + 1} / 3`;
+        }
+
+        function collide(arena, player) {
+            const m = player.matrix;
+            const o = player.pos;
+            for (let y = 0; y < m.length; ++y) {
+                for (let x = 0; x < m[y].length; ++x) {
+                    if (m[y][x] !== 0 &&
+                       (arena[y + o.y] && arena[y + o.y][x + o.x]) !== 0) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        function createMatrix(w, h) {
+            const matrix = [];
+            while (h--) {
+                matrix.push(new Array(w).fill(0));
+            }
+            return matrix;
+        }
+
+        function draw() {
+            context.fillStyle = '#000';
+            context.fillRect(0, 0, canvas.width, canvas.height);
+            drawMatrix(arena, {x: 0, y: 0});
+            drawMatrix(player.matrix, player.pos);
+        }
+
+        function drawMatrix(matrix, offset) {
+            matrix.forEach((row, y) => {
+                row.forEach((value, x) => {
+                    if (value !== 0) {
+                        context.fillStyle = colors[value];
+                        context.fillRect(x + offset.x, y + offset.y, 1, 1);
+                        // Add a little border for grid look
+                        context.lineWidth = 0.05;
+                        context.strokeStyle = 'white';
+                        context.strokeRect(x + offset.x, y + offset.y, 1, 1);
+                    }
+                });
+            });
+        }
+
+        function merge(arena, player) {
+            player.matrix.forEach((row, y) => {
+                row.forEach((value, x) => {
+                    if (value !== 0) {
+                        arena[y + player.pos.y][x + player.pos.x] = value;
+                    }
+                });
+            });
+        }
+
+        function rotate(matrix, dir) {
+            for (let y = 0; y < matrix.length; ++y) {
+                for (let x = 0; x < y; ++x) {
+                    [matrix[x][y], matrix[y][x]] = [matrix[y][x], matrix[x][y]];
+                }
+            }
+            if (dir > 0) matrix.forEach(row => row.reverse());
+            else matrix.reverse();
+        }
+
+        function playerDrop() {
+            player.pos.y++;
+            if (collide(arena, player)) {
+                player.pos.y--;
+                merge(arena, player);
+                playerReset();
+                arenaSweep();
+            }
+            dropCounter = 0;
+        }
+
+        function playerMove(offset) {
+            player.pos.x += offset;
+            if (collide(arena, player)) {
+                player.pos.x -= offset;
+            }
+        }
+
+        function playerReset() {
+            const pieces = 'ILJOTSZ';
+            player.matrix = createPiece(pieces[pieces.length * Math.random() | 0]);
+            player.pos.y = 0;
+            player.pos.x = (arena[0].length / 2 | 0) - (player.matrix[0].length / 2 | 0);
+            
+            // Game Over Check (if top is full)
+            if (collide(arena, player)) {
+                arena.forEach(row => row.fill(0));
+            }
+        }
+
+        function playerRotate(dir) {
+            const pos = player.pos.x;
+            let offset = 1;
+            rotate(player.matrix, dir);
+            while (collide(arena, player)) {
+                player.pos.x += offset;
+                offset = -(offset + (offset > 0 ? 1 : -1));
+                if (offset > player.matrix[0].length) {
+                    rotate(player.matrix, -dir);
+                    player.pos.x = pos;
+                    return;
+                }
+            }
+        }
+
+        let dropCounter = 0;
+        let dropInterval = 1000;
+        let lastTime = 0;
+
+        function update(time = 0) {
+            if (gamePaused) return;
+
+            const deltaTime = time - lastTime;
+            lastTime = time;
+            dropCounter += deltaTime;
+            if (dropCounter > dropInterval) {
+                playerDrop();
+            }
+            draw();
+            requestAnimationFrame(update);
+        }
+
+        const arena = createMatrix(12, 20);
+        const player = {
+            pos: {x: 0, y: 0},
+            matrix: null,
+        };
+
+        // --- INPUTS ---
+        document.addEventListener('keydown', event => {
+            if (gamePaused) return;
+
+            if (event.keyCode === 37) { // Left
+                playerMove(-1);
+            } else if (event.keyCode === 39) { // Right
+                playerMove(1);
+            } else if (event.keyCode === 40) { // Down
+                playerDrop();
+            } else if (event.keyCode === 38) { // Up (Rotate)
+                playerRotate(1);
+            }
         });
 
-        function setupRunawayButton() {
-            const noBtn = document.getElementById("no-btn");
-            
-            // Run away logic
-            const moveBtn = () => {
-                const x = Math.random() * (window.innerWidth - 200);
-                const y = Math.random() * (window.innerHeight - 100);
-                noBtn.style.position = "fixed";
-                noBtn.style.left = x + "px";
-                noBtn.style.top = y + "px";
-            };
+        // --- STARTUP ---
+        function setTeam(team) {
+            document.body.className = team;
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('game-layout').classList.remove('hidden');
+            playerReset();
+            updateHUD();
+            update();
+        }
 
-            noBtn.addEventListener("mouseover", moveBtn); // For Laptop mouse
-            noBtn.addEventListener("touchstart", moveBtn); // For Touch (just in case)
+        function initRunawayButton() {
+            const btn = document.getElementById('no-btn');
+            const run = () => {
+                const x = Math.random() * (window.innerWidth - 100);
+                const y = Math.random() * (window.innerHeight - 50);
+                btn.style.position = 'fixed';
+                btn.style.left = x + 'px';
+                btn.style.top = y + 'px';
+            };
+            btn.addEventListener('mouseover', run);
+            btn.addEventListener('touchstart', run);
         }
 
     </script>
