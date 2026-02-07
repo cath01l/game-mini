@@ -526,7 +526,7 @@
         <span id="ui-rose">🌹 Rose</span>
       </div>
       <div class="distance-ui" id="distance-ui">0 m</div>
-      <div class="controls-hint">← → or A/D drive · ↑↓ or W/S move lane</div>
+      <div class="controls-hint">↑ or W drive forward · ← → or A/D change lane</div>
     </div>
     <canvas id="race-canvas"></canvas>
   </div>
@@ -563,10 +563,11 @@
           <span class="podium-place">2nd</span>
           <span class="podium-emoji">🏎️</span>
           <span class="podium-label">Opponent</span>
+          <span class="podium-wines" style="display:none">🍾 🍾</span>
         </div>
         <div class="podium-block pos1">
           <span class="podium-place">1st</span>
-          <span class="podium-emoji" id="podium-player-emoji">🐱</span>
+          <span class="podium-emoji">🐱</span>
           <span class="podium-label">You!</span>
           <span class="podium-wines">🍾 🍾</span>
         </div>
@@ -574,6 +575,7 @@
           <span class="podium-place">3rd</span>
           <span class="podium-emoji">🏎️</span>
           <span class="podium-label">Opponent</span>
+          <span class="podium-wines" style="display:none">🍾 🍾</span>
         </div>
       </div>
       <p class="podium-message">You won! Celebrate with some wines 💕</p>
@@ -613,9 +615,10 @@
     let character = null; // 'cat' | 'dog'
     let collected = { jellyace: false, camera: false, rose: false };
     let gameStarted = false;
+    let playerLane = 1;
     let playerX = 0;
-    let playerY = 0;
     let roadOffset = 0;
+    let playerFinishPosition = 1;
     let collectibles = [];
     let finishLineX = 0;
     let hasWon = false;
@@ -637,32 +640,37 @@
       { id: 'rose', emoji: '🌹' }
     ];
 
-    function randomCollectiblePositions() {
+    function randomCollectiblesWithLanes() {
       const margin = 2000;
       const minGap = (TRACK_LENGTH - margin * 2) / 3;
       const positions = [];
       for (let i = 0; i < 3; i++) {
         const segStart = margin + i * minGap + minGap * 0.15;
         const segEnd = margin + (i + 1) * minGap - minGap * 0.15;
-        positions.push(segStart + Math.random() * (segEnd - segStart));
+        const worldPos = segStart + Math.random() * (segEnd - segStart);
+        const lane = Math.floor(Math.random() * LANE_COUNT);
+        positions.push({ worldPos, lane });
       }
-      positions.sort((a, b) => a - b);
+      positions.sort((a, b) => a.worldPos - b.worldPos);
       return positions;
     }
 
-    function randomObstacles() {
+    function randomObstacles(collectibleList) {
       const list = [];
       const margin = 1500;
       const used = new Set();
-      for (let i = 0; i < OBSTACLE_COUNT; i++) {
-        const x = margin + Math.random() * (TRACK_LENGTH - margin * 2);
+      let attempts = 0;
+      while (list.length < OBSTACLE_COUNT && attempts < 80) {
+        attempts++;
+        const worldPos = margin + Math.random() * (TRACK_LENGTH - margin * 2);
         const lane = Math.floor(Math.random() * LANE_COUNT);
-        const key = Math.floor(x / 400) * 10 + lane;
-        if (used.has(key)) continue;
+        const overlaps = collectibleList.some(c => c.lane === lane && Math.abs(c.worldPos - worldPos) < COLLECTIBLE_OBSTACLE_GAP);
+        const key = Math.floor(worldPos / 500) * 10 + lane;
+        if (overlaps || used.has(key)) continue;
         used.add(key);
-        list.push({ x, lane });
+        list.push({ worldPos, lane });
       }
-      list.sort((a, b) => a.x - b.x);
+      list.sort((a, b) => a.worldPos - b.worldPos);
       return list;
     }
 
@@ -723,10 +731,12 @@
     const LANE_COUNT = 3;
     const COLLECT_THRESHOLD = 100;
     const OPPONENT_COUNT = 6;
-    const OPPONENT_SPEED_MIN = 0.78;
-    const OPPONENT_SPEED_MAX = 0.92;
-    const OBSTACLE_COUNT = 18;
-    const OBSTACLE_AVOID_RANGE = 350;
+    const OPPONENT_SPEED_MIN = 0.88;
+    const OPPONENT_SPEED_MAX = 0.98;
+    const OBSTACLE_COUNT = 8;
+    const OBSTACLE_AVOID_RANGE = 400;
+    const COLLECTIBLE_OBSTACLE_GAP = 700;
+    const OPPONENT_LANE_SMOOTH = 0.06;
 
     // ═══════════════════════════════════════════════════════════════
     // DOM
@@ -796,16 +806,17 @@
     });
 
     function showFinish() {
-      finishPositionEl.textContent = 'Race result: 1st place! 🏆';
-      finishPositionEl.classList.add('first');
+      const pos = playerFinishPosition;
+      const posText = pos === 1 ? '1st place! 🏆' : pos === 2 ? '2nd place!' : pos === 3 ? '3rd place!' : pos + 'th place';
+      finishPositionEl.textContent = 'Race result: ' + posText;
+      finishPositionEl.classList.toggle('first', pos === 1);
       finishQuestionEl.textContent = CONFIG.finishQuestion;
       finishOverlay.classList.add('visible');
     }
 
     finishYes.addEventListener('click', () => {
       finishOverlay.classList.remove('visible');
-      const podiumEmoji = document.getElementById('podium-player-emoji');
-      if (podiumEmoji) podiumEmoji.textContent = character === 'cat' ? '🐱' : '🐕';
+      showPodium();
       document.getElementById('podium-overlay').classList.add('visible');
     });
     finishNo.addEventListener('click', () => {
@@ -826,23 +837,31 @@
       resizeCanvas();
       window.addEventListener('resize', resizeCanvas);
 
-      playerX = canvas.width / 2 - 25;
-      playerY = canvas.height * 0.52 - 35;
+      playerLane = 1;
+      playerX = canvas.width / 2;
       roadOffset = 0;
       collected = { jellyace: false, camera: false, rose: false };
-      const randX = randomCollectiblePositions();
-      collectibles = COLLECTIBLE_IDS.map((c, i) => ({ id: c.id, emoji: c.emoji, x: randX[i], collected: false }));
-      obstacles = randomObstacles();
-      finishLineX = TRACK_LENGTH;
+      const randCols = randomCollectiblesWithLanes();
+      collectibles = COLLECTIBLE_IDS.map((c, i) => ({
+        id: c.id,
+        emoji: c.emoji,
+        worldPos: randCols[i].worldPos,
+        lane: randCols[i].lane,
+        collected: false
+      }));
+      obstacles = randomObstacles(collectibles);
       hasWon = false;
       gameStarted = true;
       gamePaused = false;
       opponents = [];
+      const laneCenterX = (lane) => canvas.width * (lane + 0.5) / 3;
       for (let i = 0; i < OPPONENT_COUNT; i++) {
         const speed = OPPONENT_SPEED_MIN + Math.random() * (OPPONENT_SPEED_MAX - OPPONENT_SPEED_MIN);
+        const lane = i % LANE_COUNT;
         opponents.push({
-          worldX: Math.random() * 600,
-          lane: i % LANE_COUNT,
+          worldPos: Math.random() * 500,
+          lane,
+          x: laneCenterX(lane),
           color: OPPONENT_COLORS[i % OPPONENT_COLORS.length],
           speedMul: speed
         });
@@ -859,7 +878,7 @@
       const h = window.innerHeight - 52;
       canvas.width = w;
       canvas.height = h;
-      if (gameStarted && playerY !== undefined) playerY = Math.max(0, Math.min(h - 70, canvas.height * 0.52 - 35));
+      if (gameStarted && playerX !== undefined) playerX = w * (playerLane + 0.5) / 3;
     }
 
     function gameLoop() {
@@ -867,170 +886,150 @@
 
       const w = canvas.width;
       const h = canvas.height;
-      const roadTop = h * 0.14;
-      const roadBottom = h * 0.88;
-      const roadH = roadBottom - roadTop;
-      const laneH = roadH / LANE_COUNT;
-      const kerbH = 14;
-      function laneCenter(laneIndex) {
-        return roadTop + (laneIndex + 0.5) * laneH;
+      const scale = h / TRACK_LENGTH;
+      const baseY = h - 90;
+      const roadLeft = w * 0.08;
+      const roadRight = w * 0.92;
+      const roadW = roadRight - roadLeft;
+      function laneCenterX(laneIndex) {
+        return roadLeft + (laneIndex + 0.5) * (roadW / 3);
+      }
+      function worldToScreenY(worldPos) {
+        return baseY - (worldPos - roadOffset) * scale;
       }
 
-      const laneFromY = (y) => Math.max(0, Math.min(2, Math.round((y - roadTop - laneH / 2) / laneH)));
-      const playerLane = laneFromY(playerY + 35);
-
       if (!gamePaused) {
-        const hitObstacle = obstacles.some(obs => obs.lane === playerLane && Math.abs(obs.x - roadOffset) < 90);
-        if (keys['ArrowRight'] || keys['d'] || keys['D']) {
+        if (keys['ArrowLeft'] || keys['a'] || keys['A']) playerLane = Math.max(0, playerLane - 1);
+        if (keys['ArrowRight'] || keys['d'] || keys['D']) playerLane = Math.min(2, playerLane + 1);
+        playerX += (laneCenterX(playerLane) - playerX) * 0.12;
+
+        const hitObstacle = obstacles.some(obs => obs.lane === playerLane && Math.abs(obs.worldPos - roadOffset) < 90);
+        if (keys['ArrowUp'] || keys['w'] || keys['W']) {
           if (!hitObstacle) {
             roadOffset += ROAD_SPEED;
             if (roadOffset > TRACK_LENGTH) roadOffset = TRACK_LENGTH;
           }
         }
-        if (keys['ArrowLeft'] || keys['a'] || keys['A']) {
-          roadOffset -= ROAD_SPEED;
-          if (roadOffset < 0) roadOffset = 0;
-        }
-        const roadTopY = roadTop;
-        const roadBottomY = roadBottom;
-        if (keys['ArrowUp'] || keys['w'] || keys['W']) playerY = Math.max(roadTopY + 30, playerY - PLAYER_SPEED);
-        if (keys['ArrowDown'] || keys['s'] || keys['S']) playerY = Math.min(roadBottomY - 30, playerY + PLAYER_SPEED);
+
         opponents.forEach(opp => {
-          opp.worldX += ROAD_SPEED * opp.speedMul;
-          if (opp.worldX > TRACK_LENGTH + 500) opp.worldX = TRACK_LENGTH + 500;
-          const ahead = obstacles.filter(obs => obs.x > opp.worldX && obs.x - opp.worldX < OBSTACLE_AVOID_RANGE && obs.lane === opp.lane);
+          opp.worldPos += ROAD_SPEED * opp.speedMul;
+          if (opp.worldPos > TRACK_LENGTH + 500) opp.worldPos = TRACK_LENGTH + 500;
+          const ahead = obstacles.filter(obs => obs.worldPos > opp.worldPos && obs.worldPos - opp.worldPos < OBSTACLE_AVOID_RANGE && obs.lane === opp.lane);
           if (ahead.length > 0) {
             const otherLanes = [0, 1, 2].filter(l => l !== opp.lane);
-            const safe = otherLanes.find(l => !obstacles.some(obs => obs.lane === l && Math.abs(obs.x - opp.worldX) < OBSTACLE_AVOID_RANGE));
+            const safe = otherLanes.find(l => !obstacles.some(obs => obs.lane === l && obs.worldPos > opp.worldPos && obs.worldPos - opp.worldPos < OBSTACLE_AVOID_RANGE));
             if (safe !== undefined) opp.lane = safe;
           }
+          opp.x += (laneCenterX(opp.lane) - opp.x) * OPPONENT_LANE_SMOOTH;
         });
       }
 
-      const scale = w / TRACK_LENGTH;
-
-      // Run-off (F1 style: green astroturf / gray)
+      // Run-off (green)
       ctx.fillStyle = '#1e4620';
       ctx.fillRect(0, 0, w, h);
       ctx.fillStyle = '#2a5c2e';
-      for (let i = 0; i < 40; i++) {
-        ctx.fillRect((i * 37 + roadOffset * 0.2) % (w + 80) - 40, 0, 60, h);
+      for (let i = 0; i < 30; i++) {
+        ctx.fillRect((i * 50 + roadOffset * 0.1) % (w + 60) - 30, 0, 70, h);
       }
-      ctx.globalAlpha = 0.4;
+      ctx.globalAlpha = 0.35;
       ctx.fillStyle = '#1e4620';
       ctx.fillRect(0, 0, w, h);
       ctx.globalAlpha = 1;
 
-      // Kerbs (red/white) top
-      for (let k = 0; k < w + 60; k += 28) {
-        ctx.fillStyle = (Math.floor((k + roadOffset * 0.5) / 28) % 2 === 0) ? '#dc0032' : '#fff';
-        ctx.fillRect(k - 30, roadTop - kerbH, 28, kerbH);
+      const kerbW = 12;
+      for (let k = 0; k < h + 40; k += 24) {
+        const t = (k + roadOffset * 0.3) % 48;
+        ctx.fillStyle = t < 24 ? '#dc0032' : '#fff';
+        ctx.fillRect(roadLeft - kerbW, k - 20, kerbW, 24);
+        ctx.fillRect(roadRight, k - 20, kerbW, 24);
       }
-      for (let k = 0; k < w + 60; k += 28) {
-        ctx.fillStyle = (Math.floor((k + roadOffset * 0.5) / 28) % 2 === 0) ? '#dc0032' : '#fff';
-        ctx.fillRect(k - 30, roadBottom, 28, kerbH);
-      }
-      // Track surface (tarmac)
       ctx.fillStyle = '#3d3d3f';
-      ctx.fillRect(0, roadTop, w, roadH);
+      ctx.fillRect(roadLeft, 0, roadW, h);
       ctx.fillStyle = '#353538';
-      for (let i = 0; i < 120; i++) {
-        const x = (i * 33 + roadOffset * 0.15) % (w + 50) - 25;
-        ctx.fillRect(x, roadTop, 2, roadH);
+      for (let i = 0; i < 80; i++) {
+        const y = (i * 25 + roadOffset * 0.1) % (h + 40) - 20;
+        ctx.fillRect(roadLeft, y, roadW, 2);
       }
       ctx.globalAlpha = 0.5;
       ctx.fillStyle = '#2a2a2c';
-      ctx.fillRect(0, roadTop, w, roadH);
+      ctx.fillRect(roadLeft, 0, roadW, h);
       ctx.globalAlpha = 1;
-      // White lane lines
       ctx.strokeStyle = 'rgba(255,255,255,0.95)';
       ctx.lineWidth = 4;
-      for (let i = 1; i < LANE_COUNT; i++) {
-        const y = roadTop + i * laneH;
-        ctx.setLineDash([28, 22]);
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(w, y);
-        ctx.stroke();
-      }
+      ctx.setLineDash([30, 24]);
+      ctx.beginPath();
+      ctx.moveTo(roadLeft + roadW / 3, 0);
+      ctx.lineTo(roadLeft + roadW / 3, h);
+      ctx.moveTo(roadLeft + (2 * roadW) / 3, 0);
+      ctx.lineTo(roadLeft + (2 * roadW) / 3, h);
+      ctx.stroke();
       ctx.setLineDash([]);
       ctx.strokeStyle = '#fff';
-      ctx.lineWidth = 3;
-      ctx.strokeRect(0, roadTop, w, roadH);
+      ctx.lineWidth = 2;
+      ctx.strokeRect(roadLeft, 0, roadW, h);
 
-      // Obstacles (cones / barriers)
+      // Finish line (white and black chequered) - fixed at top of track
+      const finishScreenY = worldToScreenY(TRACK_LENGTH);
+      if (finishScreenY > -100 && finishScreenY < h + 100) {
+        const cell = 14;
+        const bandH = 56;
+        const fy = finishScreenY - bandH / 2;
+        for (let yy = 0; yy < bandH + cell; yy += cell) {
+          for (let xx = 0; xx < roadW + cell; xx += cell) {
+            const row = Math.floor(yy / cell);
+            const col = Math.floor(xx / cell);
+            ctx.fillStyle = (row + col) % 2 === 0 ? '#fff' : '#111';
+            ctx.fillRect(roadLeft + xx, fy + yy, cell + 1, cell + 1);
+          }
+        }
+        ctx.strokeStyle = '#dc0032';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(roadLeft, fy, roadW, bandH + 4);
+      }
+      if (!hasWon && roadOffset >= TRACK_LENGTH - 150) {
+        hasWon = true;
+        playerFinishPosition = 1 + opponents.filter(o => o.worldPos >= TRACK_LENGTH).length;
+        showFinish();
+      }
+
+      // Obstacles (cones)
       obstacles.forEach(obs => {
-        const sx = w/2 + (obs.x - roadOffset) * scale;
-        if (sx < -40 || sx > w + 40) return;
-        const sy = laneCenter(obs.lane);
+        const sy = worldToScreenY(obs.worldPos);
+        if (sy < -30 || sy > h + 30) return;
+        const sx = laneCenterX(obs.lane);
         ctx.fillStyle = '#f59e0b';
         ctx.strokeStyle = '#fbbf24';
         ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.moveTo(sx, sy - 18);
-        ctx.lineTo(sx + 14, sy + 12);
-        ctx.lineTo(sx, sy + 18);
-        ctx.lineTo(sx - 14, sy + 12);
+        ctx.moveTo(sx, sy - 14);
+        ctx.lineTo(sx + 12, sy + 10);
+        ctx.lineTo(sx, sy + 14);
+        ctx.lineTo(sx - 12, sy + 10);
         ctx.closePath();
         ctx.fill();
         ctx.stroke();
         ctx.fillStyle = '#fff';
-        ctx.fillRect(sx - 4, sy - 8, 8, 12);
+        ctx.fillRect(sx - 3, sy - 6, 6, 10);
       });
 
-      // Finish line (white and black chequered)
-      if (finishLineX - roadOffset < 400) {
-        const fx = w - 54;
-        const cell = 16;
-        for (let yy = roadTop - 6; yy < roadBottom + 10; yy += cell) {
-          for (let xx = 0; xx < 54; xx += cell) {
-            const row = Math.floor((yy - roadTop) / cell);
-            const col = Math.floor(xx / cell);
-            ctx.fillStyle = (row + col) % 2 === 0 ? '#fff' : '#111';
-            ctx.fillRect(fx + xx, yy, cell + 1, cell + 1);
-          }
-        }
-        ctx.strokeStyle = '#dc0032';
-        ctx.lineWidth = 3;
-        ctx.strokeRect(fx, roadTop - 6, 54, roadH + 16);
-        if (!hasWon && roadOffset >= TRACK_LENGTH - 200) {
-          hasWon = true;
-          showFinish();
-        }
-      } else {
-        const fx = Math.min(w - 24, w/2 + (finishLineX - roadOffset) * scale);
-        if (fx > 0) {
-          ctx.strokeStyle = 'rgba(255,255,255,0.7)';
-          ctx.setLineDash([22, 18]);
-          ctx.lineWidth = 4;
-          ctx.beginPath();
-          ctx.moveTo(fx, roadTop);
-          ctx.lineTo(fx, roadBottom);
-          ctx.stroke();
-          ctx.setLineDash([]);
-        }
-      }
-
-      // Opponents (car shape, no text)
+      // Opponents (smooth X)
       opponents.forEach(opp => {
-        const sx = w/2 + (opp.worldX - roadOffset) * scale;
-        if (sx < -80 || sx > w + 80) return;
-        const sy = laneCenter(opp.lane);
-        drawCar(ctx, sx, sy, opp.color.main, opp.color.accent, null);
+        const sy = worldToScreenY(opp.worldPos);
+        if (sy < -60 || sy > h + 60) return;
+        drawCar(ctx, opp.x, sy, opp.color.main, opp.color.accent, null);
       });
 
-      // Collectibles: ahead of player, move toward center as you drive
-      const collectibleY = laneCenter(1);
+      // Collectibles
       collectibles.forEach(col => {
         if (col.collected) return;
-        const distAhead = col.x - roadOffset;
-        const sx = w/2 + distAhead * scale;
-        if (sx < -40 || sx > w + 40) return;
-        ctx.font = '38px serif';
+        const sy = worldToScreenY(col.worldPos);
+        if (sy < -30 || sy > h + 30) return;
+        const sx = laneCenterX(col.lane);
+        ctx.font = '36px serif';
         ctx.textAlign = 'center';
-        ctx.fillText(col.emoji, sx, collectibleY);
-        const inRange = Math.abs(distAhead) < COLLECT_THRESHOLD;
-        const sameLane = Math.abs((playerY + 35) - collectibleY) < 55;
+        ctx.fillText(col.emoji, sx, sy);
+        const inRange = Math.abs(col.worldPos - roadOffset) < COLLECT_THRESHOLD;
+        const sameLane = playerLane === col.lane;
         if (inRange && sameLane) {
           col.collected = true;
           collected[col.id] = true;
@@ -1039,30 +1038,53 @@
         }
       });
 
-      // Player car (stays at center X, moves vertically between lanes)
-      playerY = Math.max(roadTop + 30, Math.min(roadBottom - 30, playerY));
+      // Player (fixed at baseY, X follows lane)
+      playerX = Math.max(roadLeft + roadW / 6, Math.min(roadRight - roadW / 6, playerX));
       const colors = CAR_COLORS[car] || CAR_COLORS.ferrari;
       const charEmoji = character === 'cat' ? '🐱' : '🐕';
-      const px = playerX;
-      const py = playerY;
 
       if (gamePaused) {
         ctx.fillStyle = 'rgba(0,0,0,0.5)';
         ctx.fillRect(0, 0, w, h);
         ctx.fillStyle = '#fff';
-        ctx.font = 'bold 32px Russo One, sans-serif';
+        ctx.font = 'bold 32px sans-serif';
         ctx.textAlign = 'center';
         ctx.fillText('PAUSED', w / 2, h / 2 - 20);
         ctx.font = '16px sans-serif';
         ctx.fillText('Close the message to continue', w / 2, h / 2 + 15);
       }
 
-      drawCar(ctx, px + 25, py + 35, colors.main, colors.accent, charEmoji);
+      drawCar(ctx, playerX, baseY, colors.main, colors.accent, charEmoji);
 
       const distEl = document.getElementById('distance-ui');
       if (distEl) distEl.textContent = Math.min(Math.round(roadOffset), TRACK_LENGTH) + ' m / ' + TRACK_LENGTH + ' m';
 
       requestAnimationFrame(gameLoop);
+    }
+
+    function showPodium() {
+      const pos = playerFinishPosition;
+      const posLabel = pos === 1 ? '1st' : pos === 2 ? '2nd' : pos === 3 ? '3rd' : pos + 'th';
+      const blocks = [
+        document.querySelector('.podium-block.pos1'),
+        document.querySelector('.podium-block.pos2'),
+        document.querySelector('.podium-block.pos3')
+      ];
+      const places = ['1st', '2nd', '3rd'];
+      blocks.forEach((el, i) => {
+        if (!el) return;
+        const placeSpan = el.querySelector('.podium-place');
+        const emojiSpan = el.querySelector('.podium-emoji');
+        const labelSpan = el.querySelector('.podium-label');
+        const winesSpan = el.querySelector('.podium-wines');
+        if (placeSpan) placeSpan.textContent = places[i];
+        const isPlayer = (i === 0 && pos === 1) || (i === 1 && pos === 2) || (i === 2 && pos === 3);
+        if (emojiSpan) emojiSpan.textContent = isPlayer ? (character === 'cat' ? '🐱' : '🐕') : '🏎️';
+        if (labelSpan) labelSpan.textContent = isPlayer ? 'You!' : 'Opponent';
+        if (winesSpan) winesSpan.style.display = isPlayer ? 'block' : 'none';
+      });
+      const msgEl = document.querySelector('.podium-message');
+      if (msgEl) msgEl.textContent = pos === 1 ? 'You won! Celebrate with champagne 💕' : posLabel + ' place! Still celebrate with champagne 💕';
     }
 
     function updateCollectiblesUI() {
@@ -1074,6 +1096,7 @@
   </script>
 </body>
 </html>
+
 
 
 
