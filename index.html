@@ -357,6 +357,127 @@
     #finish-no:hover {
       background: rgba(255,255,255,0.25);
     }
+
+    /* Podium */
+    #podium-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.88);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 30;
+      padding: 1.5rem;
+    }
+
+    #podium-overlay.visible {
+      display: flex;
+    }
+
+    #podium-box {
+      max-width: 480px;
+      width: 100%;
+      padding: 2rem;
+      background: linear-gradient(160deg, #1a1a22 0%, #0f0f14 100%);
+      border-radius: 20px;
+      border: 2px solid rgba(251, 191, 36, 0.4);
+      box-shadow: 0 0 50px rgba(251, 191, 36, 0.15), 0 20px 60px rgba(0,0,0,0.5);
+      text-align: center;
+    }
+
+    .podium-title {
+      font-family: 'Russo One', sans-serif;
+      font-size: 1.5rem;
+      margin-bottom: 1.5rem;
+      color: #fbbf24;
+    }
+
+    .podium-stage {
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      gap: 0.5rem;
+      margin-bottom: 1.5rem;
+      min-height: 200px;
+    }
+
+    .podium-block {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 1rem 0.5rem;
+      border-radius: 12px 12px 0 0;
+      position: relative;
+    }
+
+    .podium-block.pos1 {
+      background: linear-gradient(180deg, #fbbf24 0%, #d97706 100%);
+      height: 180px;
+      order: 2;
+      box-shadow: 0 -4px 20px rgba(251, 191, 36, 0.4);
+    }
+
+    .podium-block.pos2 {
+      background: linear-gradient(180deg, #9ca3af 0%, #6b7280 100%);
+      height: 130px;
+      order: 1;
+    }
+
+    .podium-block.pos3 {
+      background: linear-gradient(180deg, #b45309 0%, #92400e 100%);
+      height: 100px;
+      order: 3;
+    }
+
+    .podium-place {
+      font-family: 'Russo One', sans-serif;
+      font-size: 0.9rem;
+      margin-bottom: 0.25rem;
+      color: rgba(0,0,0,0.7);
+    }
+
+    .podium-block.pos1 .podium-place { color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.3); }
+
+    .podium-emoji {
+      font-size: 2.5rem;
+      display: block;
+      margin-bottom: 0.25rem;
+    }
+
+    .podium-block.pos1 .podium-emoji { font-size: 3rem; }
+
+    .podium-label {
+      font-size: 0.8rem;
+      opacity: 0.9;
+    }
+
+    .podium-wines {
+      font-size: 1.8rem;
+      margin-top: 0.5rem;
+      display: block;
+    }
+
+    .podium-message {
+      font-size: 1rem;
+      margin-bottom: 1rem;
+      opacity: 0.95;
+    }
+
+    .podium-btn {
+      padding: 0.7rem 1.8rem;
+      background: linear-gradient(135deg, #dc0032, #b00028);
+      border: none;
+      border-radius: 10px;
+      color: #fff;
+      font-family: inherit;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .podium-btn:hover {
+      transform: scale(1.03);
+    }
   </style>
 </head>
 <body>
@@ -433,6 +554,33 @@
     </div>
   </div>
 
+  <!-- Podium with wines (after win + Yes) -->
+  <div id="podium-overlay">
+    <div id="podium-box">
+      <h2 class="podium-title">🏆 Podium 🏆</h2>
+      <div class="podium-stage">
+        <div class="podium-block pos2">
+          <span class="podium-place">2nd</span>
+          <span class="podium-emoji">🏎️</span>
+          <span class="podium-label">Opponent</span>
+        </div>
+        <div class="podium-block pos1">
+          <span class="podium-place">1st</span>
+          <span class="podium-emoji" id="podium-player-emoji">🐱</span>
+          <span class="podium-label">You!</span>
+          <span class="podium-wines">🍾 🍾</span>
+        </div>
+        <div class="podium-block pos3">
+          <span class="podium-place">3rd</span>
+          <span class="podium-emoji">🏎️</span>
+          <span class="podium-label">Opponent</span>
+        </div>
+      </div>
+      <p class="podium-message">You won! Celebrate with some wines 💕</p>
+      <button type="button" class="podium-btn" id="podium-close">Continue</button>
+    </div>
+  </div>
+
   <script>
     // ═══════════════════════════════════════════════════════════════
     // EDIT YOUR MESSAGES HERE (storyline for each collectible + final question)
@@ -502,6 +650,68 @@
       return positions;
     }
 
+    function randomObstacles() {
+      const list = [];
+      const margin = 1500;
+      const used = new Set();
+      for (let i = 0; i < OBSTACLE_COUNT; i++) {
+        const x = margin + Math.random() * (TRACK_LENGTH - margin * 2);
+        const lane = Math.floor(Math.random() * LANE_COUNT);
+        const key = Math.floor(x / 400) * 10 + lane;
+        if (used.has(key)) continue;
+        used.add(key);
+        list.push({ x, lane });
+      }
+      list.sort((a, b) => a.x - b.x);
+      return list;
+    }
+
+    let obstacles = [];
+
+    function drawCar(ctx, cx, cy, mainColor, accentColor, driverEmoji) {
+      const W = 44;
+      const H = 64;
+      const left = cx - W / 2;
+      const top = cy - H / 2;
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.fillStyle = mainColor;
+      ctx.strokeStyle = accentColor;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      const rad = 6, x = -W/2 + 4, y = -H/2 + 6, w = W - 8, h = H - 12;
+      ctx.moveTo(x + rad, y);
+      ctx.lineTo(x + w - rad, y);
+      ctx.quadraticCurveTo(x + w, y, x + w, y + rad);
+      ctx.lineTo(x + w, y + h - rad);
+      ctx.quadraticCurveTo(x + w, y + h, x + w - rad, y + h);
+      ctx.lineTo(x + rad, y + h);
+      ctx.quadraticCurveTo(x, y + h, x, y + h - rad);
+      ctx.lineTo(x, y + rad);
+      ctx.quadraticCurveTo(x, y, x + rad, y);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = 'rgba(200,220,255,0.5)';
+      ctx.fillRect(-W/2 + 12, -H/2 + 14, 20, 18);
+      ctx.strokeStyle = accentColor;
+      ctx.strokeRect(-W/2 + 12, -H/2 + 14, 20, 18);
+      ctx.fillStyle = '#1a1a1a';
+      ctx.strokeStyle = accentColor;
+      const wheelR = 6;
+      [[-W/2 + 10, H/2 - 12], [W/2 - 10, H/2 - 12], [-W/2 + 10, -H/2 + 12], [W/2 - 10, -H/2 + 12]].forEach(([x, y]) => {
+        ctx.beginPath();
+        ctx.arc(x, y, wheelR, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      });
+      ctx.restore();
+      if (driverEmoji) {
+        ctx.font = '22px serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(driverEmoji, cx, cy + 4);
+      }
+    }
+
     let opponents = [];
     const OPPONENT_COLORS = [
       { main: '#1e3a8a', accent: '#60a5fa' },
@@ -513,8 +723,10 @@
     const LANE_COUNT = 3;
     const COLLECT_THRESHOLD = 100;
     const OPPONENT_COUNT = 6;
-    const OPPONENT_SPEED_MIN = 1.02;
-    const OPPONENT_SPEED_MAX = 1.12;
+    const OPPONENT_SPEED_MIN = 0.78;
+    const OPPONENT_SPEED_MAX = 0.92;
+    const OBSTACLE_COUNT = 18;
+    const OBSTACLE_AVOID_RANGE = 350;
 
     // ═══════════════════════════════════════════════════════════════
     // DOM
@@ -584,20 +796,25 @@
     });
 
     function showFinish() {
-      const pos = finishPosition;
-      const posText = pos === 1 ? '1st place! 🏆' : pos === 2 ? '2nd place!' : pos === 3 ? '3rd place!' : pos + 'th place';
-      finishPositionEl.textContent = 'Race result: ' + posText;
-      finishPositionEl.classList.toggle('first', pos === 1);
+      finishPositionEl.textContent = 'Race result: 1st place! 🏆';
+      finishPositionEl.classList.add('first');
       finishQuestionEl.textContent = CONFIG.finishQuestion;
       finishOverlay.classList.add('visible');
     }
 
     finishYes.addEventListener('click', () => {
       finishOverlay.classList.remove('visible');
-      alert('Yay! Valentine\'s Day with you is going to be the best! 💕');
+      const podiumEmoji = document.getElementById('podium-player-emoji');
+      if (podiumEmoji) podiumEmoji.textContent = character === 'cat' ? '🐱' : '🐕';
+      document.getElementById('podium-overlay').classList.add('visible');
     });
     finishNo.addEventListener('click', () => {
       finishOverlay.classList.remove('visible');
+    });
+
+    document.getElementById('podium-close').addEventListener('click', () => {
+      document.getElementById('podium-overlay').classList.remove('visible');
+      alert('Yay! Valentine\'s Day with you is going to be the best! 💕');
     });
 
     // ═══════════════════════════════════════════════════════════════
@@ -615,6 +832,7 @@
       collected = { jellyace: false, camera: false, rose: false };
       const randX = randomCollectiblePositions();
       collectibles = COLLECTIBLE_IDS.map((c, i) => ({ id: c.id, emoji: c.emoji, x: randX[i], collected: false }));
+      obstacles = randomObstacles();
       finishLineX = TRACK_LENGTH;
       hasWon = false;
       gameStarted = true;
@@ -623,7 +841,7 @@
       for (let i = 0; i < OPPONENT_COUNT; i++) {
         const speed = OPPONENT_SPEED_MIN + Math.random() * (OPPONENT_SPEED_MAX - OPPONENT_SPEED_MIN);
         opponents.push({
-          worldX: Math.random() * 800,
+          worldX: Math.random() * 600,
           lane: i % LANE_COUNT,
           color: OPPONENT_COLORS[i % OPPONENT_COLORS.length],
           speedMul: speed
@@ -644,8 +862,6 @@
       if (gameStarted && playerY !== undefined) playerY = Math.max(0, Math.min(h - 70, canvas.height * 0.52 - 35));
     }
 
-    let finishPosition = 1;
-
     function gameLoop() {
       if (!gameStarted || !ctx) return;
 
@@ -660,10 +876,16 @@
         return roadTop + (laneIndex + 0.5) * laneH;
       }
 
+      const laneFromY = (y) => Math.max(0, Math.min(2, Math.round((y - roadTop - laneH / 2) / laneH)));
+      const playerLane = laneFromY(playerY + 35);
+
       if (!gamePaused) {
+        const hitObstacle = obstacles.some(obs => obs.lane === playerLane && Math.abs(obs.x - roadOffset) < 90);
         if (keys['ArrowRight'] || keys['d'] || keys['D']) {
-          roadOffset += ROAD_SPEED;
-          if (roadOffset > TRACK_LENGTH) roadOffset = TRACK_LENGTH;
+          if (!hitObstacle) {
+            roadOffset += ROAD_SPEED;
+            if (roadOffset > TRACK_LENGTH) roadOffset = TRACK_LENGTH;
+          }
         }
         if (keys['ArrowLeft'] || keys['a'] || keys['A']) {
           roadOffset -= ROAD_SPEED;
@@ -676,6 +898,12 @@
         opponents.forEach(opp => {
           opp.worldX += ROAD_SPEED * opp.speedMul;
           if (opp.worldX > TRACK_LENGTH + 500) opp.worldX = TRACK_LENGTH + 500;
+          const ahead = obstacles.filter(obs => obs.x > opp.worldX && obs.x - opp.worldX < OBSTACLE_AVOID_RANGE && obs.lane === opp.lane);
+          if (ahead.length > 0) {
+            const otherLanes = [0, 1, 2].filter(l => l !== opp.lane);
+            const safe = otherLanes.find(l => !obstacles.some(obs => obs.lane === l && Math.abs(obs.x - opp.worldX) < OBSTACLE_AVOID_RANGE));
+            if (safe !== undefined) opp.lane = safe;
+          }
         });
       }
 
@@ -730,7 +958,27 @@
       ctx.lineWidth = 3;
       ctx.strokeRect(0, roadTop, w, roadH);
 
-      // Finish line (checkered / F1 style)
+      // Obstacles (cones / barriers)
+      obstacles.forEach(obs => {
+        const sx = w/2 + (obs.x - roadOffset) * scale;
+        if (sx < -40 || sx > w + 40) return;
+        const sy = laneCenter(obs.lane);
+        ctx.fillStyle = '#f59e0b';
+        ctx.strokeStyle = '#fbbf24';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(sx, sy - 18);
+        ctx.lineTo(sx + 14, sy + 12);
+        ctx.lineTo(sx, sy + 18);
+        ctx.lineTo(sx - 14, sy + 12);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(sx - 4, sy - 8, 8, 12);
+      });
+
+      // Finish line (white and black chequered)
       if (finishLineX - roadOffset < 400) {
         const fx = w - 54;
         const cell = 16;
@@ -747,8 +995,6 @@
         ctx.strokeRect(fx, roadTop - 6, 54, roadH + 16);
         if (!hasWon && roadOffset >= TRACK_LENGTH - 200) {
           hasWon = true;
-          const ahead = opponents.filter(o => o.worldX >= TRACK_LENGTH).length;
-          finishPosition = 1 + ahead;
           showFinish();
         }
       } else {
@@ -765,21 +1011,12 @@
         }
       }
 
-      // Opponents
+      // Opponents (car shape, no text)
       opponents.forEach(opp => {
         const sx = w/2 + (opp.worldX - roadOffset) * scale;
         if (sx < -80 || sx > w + 80) return;
         const sy = laneCenter(opp.lane);
-        const c = opp.color;
-        ctx.fillStyle = c.main;
-        ctx.fillRect(sx - 24, sy - 34, 48, 68);
-        ctx.strokeStyle = c.accent;
-        ctx.lineWidth = 2;
-        ctx.strokeRect(sx - 24, sy - 34, 48, 68);
-        ctx.fillStyle = 'rgba(255,255,255,0.9)';
-        ctx.font = 'bold 18px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText('F1', sx, sy + 6);
+        drawCar(ctx, sx, sy, opp.color.main, opp.color.accent, null);
       });
 
       // Collectibles: ahead of player, move toward center as you drive
@@ -820,16 +1057,7 @@
         ctx.fillText('Close the message to continue', w / 2, h / 2 + 15);
       }
 
-      ctx.fillStyle = colors.main;
-      ctx.beginPath();
-      ctx.rect(px, py, 50, 70);
-      ctx.fill();
-      ctx.strokeStyle = colors.accent;
-      ctx.lineWidth = 2;
-      ctx.stroke();
-      ctx.font = '28px serif';
-      ctx.textAlign = 'center';
-      ctx.fillText(charEmoji, px + 25, py + 48);
+      drawCar(ctx, px + 25, py + 35, colors.main, colors.accent, charEmoji);
 
       const distEl = document.getElementById('distance-ui');
       if (distEl) distEl.textContent = Math.min(Math.round(roadOffset), TRACK_LENGTH) + ' m / ' + TRACK_LENGTH + ' m';
@@ -846,6 +1074,7 @@
   </script>
 </body>
 </html>
+
 
 
 
