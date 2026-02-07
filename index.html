@@ -1,452 +1,681 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Proposal Tetris 🧱❤️</title>
-    <style>
-        /* --- 1. VISUAL STYLE --- */
-        body {
-            background: #202028;
-            color: #fff;
-            font-family: 'Courier New', Courier, monospace;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            margin: 0;
-            overflow: hidden;
-        }
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Valentine's GP — For You 💕</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Russo+One&family=Outfit:wght@400;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --ferrari-red: #dc0032;
+      --ferrari-yellow: #ffeb00;
+      --mercedes-teal: #00d2be;
+      --mercedes-silver: #e8e8e8;
+      --track-green: #2d5016;
+      --asphalt: #3a3a3c;
+    }
 
-        /* UI Overlays */
-        .screen {
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(13, 15, 26, 0.95);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            z-index: 10;
-        }
-        .hidden { display: none !important; }
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
 
-        h1 { color: #ff4d6d; text-shadow: 0 0 10px #ff4d6d; margin-bottom: 20px; text-align: center; }
-        p { font-size: 1.2rem; max-width: 600px; text-align: center; line-height: 1.5; margin: 10px 20px; }
+    body {
+      font-family: 'Outfit', sans-serif;
+      background: linear-gradient(180deg, #0f0f12 0%, #1a1a22 100%);
+      min-height: 100vh;
+      color: #fff;
+      overflow: hidden;
+    }
 
-        /* Buttons */
-        .btn {
-            background: transparent;
-            color: white;
-            border: 2px solid #ff4d6d;
-            padding: 15px 30px;
-            font-size: 1.2rem;
-            margin: 10px;
-            cursor: pointer;
-            border-radius: 5px;
-            transition: 0.2s;
-            font-family: inherit;
-        }
-        .btn:hover { background: #ff4d6d; color: black; transform: scale(1.1); }
+    /* ========== START SCREEN ========== */
+    #start-screen {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      background: radial-gradient(ellipse at 50% 0%, #2a1a1a 0%, #0f0f12 70%);
+      z-index: 10;
+      transition: opacity 0.5s ease;
+    }
 
-        /* Game Board Layout */
-        #game-layout {
-            display: flex;
-            gap: 20px;
-            align-items: flex-start;
-        }
+    #start-screen.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
 
-        canvas {
-            border: 4px solid #fff;
-            box-shadow: 0 0 20px rgba(0,0,0,0.5);
-            background-color: #000;
-        }
+    .title {
+      font-family: 'Russo One', sans-serif;
+      font-size: clamp(1.8rem, 5vw, 2.8rem);
+      letter-spacing: 0.1em;
+      margin-bottom: 0.5rem;
+      background: linear-gradient(90deg, #dc0032, #ff6b8a);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
 
-        #stats {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            font-size: 1.5rem;
-            text-align: left;
-        }
-        .stat-label { font-size: 1rem; color: #888; }
+    .subtitle {
+      font-size: 0.95rem;
+      opacity: 0.85;
+      margin-bottom: 2.5rem;
+    }
 
-        /* Dialogue Box (Pop-up) */
-        #dialogue-box {
-            position: absolute;
-            background: #fff;
-            color: #000;
-            padding: 30px;
-            border-radius: 10px;
-            border: 4px solid #ff4d6d;
-            max-width: 500px;
-            text-align: center;
-            box-shadow: 0 0 50px rgba(0,0,0,0.8);
-            z-index: 20;
-        }
-        #dialogue-img {
-            max-width: 100%;
-            height: 200px;
-            object-fit: cover;
-            border-radius: 5px;
-            margin-bottom: 15px;
-            display: block;
-            margin: 0 auto 15px auto;
-        }
+    .choice-section {
+      width: 100%;
+      max-width: 420px;
+      margin-bottom: 2rem;
+    }
 
-        /* Team Themes */
-        body.ferrari canvas { border-color: #ff2800; }
-        body.mercedes canvas { border-color: #00d2be; }
-        
-        /* Proposal Buttons */
-        #no-btn { position: relative; }
-    </style>
+    .choice-label {
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      opacity: 0.8;
+      margin-bottom: 0.75rem;
+    }
+
+    .choices {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .choice-btn {
+      flex: 1;
+      min-width: 140px;
+      padding: 1rem 1.25rem;
+      border: 2px solid rgba(255,255,255,0.2);
+      border-radius: 12px;
+      background: rgba(255,255,255,0.06);
+      color: #fff;
+      font-family: inherit;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .choice-btn:hover {
+      background: rgba(255,255,255,0.12);
+      border-color: rgba(255,255,255,0.4);
+      transform: translateY(-2px);
+    }
+
+    .choice-btn.selected {
+      border-color: var(--ferrari-red);
+      background: rgba(220, 0, 50, 0.2);
+      box-shadow: 0 0 20px rgba(220, 0, 50, 0.3);
+    }
+
+    .choice-btn.mercedes.selected {
+      border-color: var(--mercedes-teal);
+      background: rgba(0, 210, 190, 0.2);
+      box-shadow: 0 0 20px rgba(0, 210, 190, 0.3);
+    }
+
+    .choice-btn .icon {
+      font-size: 2rem;
+    }
+
+    .start-race-btn {
+      margin-top: 1rem;
+      padding: 1rem 3rem;
+      font-family: 'Russo One', sans-serif;
+      font-size: 1.2rem;
+      letter-spacing: 0.1em;
+      border: none;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #dc0032, #b00028);
+      color: #fff;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 20px rgba(220, 0, 50, 0.4);
+    }
+
+    .start-race-btn:hover {
+      transform: scale(1.05);
+      box-shadow: 0 6px 28px rgba(220, 0, 50, 0.5);
+    }
+
+    /* ========== GAME SCREEN ========== */
+    #game-screen {
+      position: fixed;
+      inset: 0;
+      display: none;
+      flex-direction: column;
+      background: #0f0f12;
+      z-index: 5;
+    }
+
+    #game-screen.visible {
+      display: flex;
+    }
+
+    .game-ui {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.75rem 1.5rem;
+      background: rgba(0,0,0,0.5);
+      border-bottom: 2px solid rgba(255,255,255,0.1);
+    }
+
+    .collectibles-ui {
+      display: flex;
+      gap: 1rem;
+      font-size: 0.9rem;
+    }
+
+    .collectibles-ui span {
+      opacity: 0.6;
+    }
+
+    .collectibles-ui span.got {
+      opacity: 1;
+      color: #4ade80;
+    }
+
+    .controls-hint {
+      font-size: 0.75rem;
+      opacity: 0.7;
+    }
+
+    #race-canvas {
+      flex: 1;
+      width: 100%;
+      min-height: 0;
+      display: block;
+      background: #1a1a1a;
+    }
+
+    /* ========== POPUP (collectible storyline) ========== */
+    #popup-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.75);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 20;
+      padding: 1.5rem;
+    }
+
+    #popup-overlay.visible {
+      display: flex;
+    }
+
+    #popup-box {
+      max-width: 420px;
+      width: 100%;
+      padding: 1.75rem;
+      background: linear-gradient(160deg, #1e1e26 0%, #15151c 100%);
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,0.1);
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    }
+
+    #popup-box .popup-emoji {
+      font-size: 3rem;
+      text-align: center;
+      margin-bottom: 1rem;
+    }
+
+    #popup-box .popup-title {
+      font-family: 'Russo One', sans-serif;
+      font-size: 1.25rem;
+      margin-bottom: 0.75rem;
+      text-align: center;
+    }
+
+    #popup-box .popup-text {
+      font-size: 1rem;
+      line-height: 1.6;
+      opacity: 0.95;
+      text-align: center;
+      white-space: pre-line;
+    }
+
+    #popup-close {
+      display: block;
+      margin: 1.25rem auto 0;
+      padding: 0.6rem 1.5rem;
+      background: var(--ferrari-red);
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+      font-family: inherit;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    /* ========== FINISH POPUP (the question) ========== */
+    #finish-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.85);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 25;
+      padding: 1.5rem;
+    }
+
+    #finish-overlay.visible {
+      display: flex;
+    }
+
+    #finish-box {
+      max-width: 440px;
+      width: 100%;
+      padding: 2rem;
+      background: linear-gradient(160deg, #2a1a22 0%, #1a1218 100%);
+      border-radius: 20px;
+      border: 2px solid rgba(220, 0, 50, 0.4);
+      box-shadow: 0 0 40px rgba(220, 0, 50, 0.2), 0 20px 60px rgba(0,0,0,0.5);
+      text-align: center;
+    }
+
+    #finish-box .finish-hearts {
+      font-size: 2.5rem;
+      margin-bottom: 1rem;
+    }
+
+    #finish-box .finish-question {
+      font-family: 'Russo One', sans-serif;
+      font-size: 1.4rem;
+      line-height: 1.5;
+      margin-bottom: 1.5rem;
+      white-space: pre-line;
+    }
+
+    #finish-box .finish-buttons {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    #finish-box .finish-btn {
+      padding: 0.9rem 1.75rem;
+      border: none;
+      border-radius: 12px;
+      font-family: inherit;
+      font-size: 1.1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.25s ease;
+    }
+
+    #finish-yes {
+      background: linear-gradient(135deg, #dc0032, #b00028);
+      color: #fff;
+    }
+
+    #finish-yes:hover {
+      transform: scale(1.05);
+    }
+
+    #finish-no {
+      background: rgba(255,255,255,0.15);
+      color: #fff;
+      border: 2px solid rgba(255,255,255,0.3);
+    }
+
+    #finish-no:hover {
+      background: rgba(255,255,255,0.25);
+    }
+  </style>
 </head>
 <body>
+  <!-- START: car + character selection -->
+  <div id="start-screen">
+    <h1 class="title">VALENTINE'S GP</h1>
+    <p class="subtitle">Pick your ride and your co-pilot</p>
 
-    <div id="start-screen" class="screen">
-        <h1>🏁 PUZZLE QUALIFYING 🏁</h1>
-        <p>Before we can race, we must fit the pieces together.</p>
-        <p>Select your team to begin:</p>
-        <div>
-            <button class="btn" onclick="setTeam('ferrari')">🐱 Team Ferrari</button>
-            <button class="btn" onclick="setTeam('mercedes')">🐶 Team Mercedes</button>
-        </div>
+    <div class="choice-section">
+      <div class="choice-label">Choose your car</div>
+      <div class="choices">
+        <button type="button" class="choice-btn" data-car="ferrari">
+          <span class="icon">🏎️</span>
+          <span>Ferrari</span>
+        </button>
+        <button type="button" class="choice-btn" data-car="mercedes">
+          <span class="icon">🏎️</span>
+          <span>Mercedes</span>
+        </button>
+      </div>
     </div>
 
-    <div id="game-layout" class="hidden">
-        <div id="stats">
-            <div>
-                <div class="stat-label">LEVEL</div>
-                <div id="level-display">1 / 3</div>
-            </div>
-            <div>
-                <div class="stat-label">LINES LEFT</div>
-                <div id="lines-display">2</div>
-            </div>
-            <div style="margin-top:20px; font-size: 1rem; opacity: 0.7;">
-                Controls:<br>⬅️ ➡️ Move<br>⬆️ Rotate<br>⬇️ Drop
-            </div>
-        </div>
-        <canvas id="tetris" width="240" height="400"></canvas>
+    <div class="choice-section">
+      <div class="choice-label">Choose your character</div>
+      <div class="choices">
+        <button type="button" class="choice-btn" data-char="cat">
+          <span class="icon">🐱</span>
+          <span>Cat</span>
+        </button>
+        <button type="button" class="choice-btn" data-char="dog">
+          <span class="icon">🐕</span>
+          <span>Dog</span>
+        </button>
+      </div>
     </div>
 
-    <div id="dialogue-box" class="hidden">
-        <h2 id="dialogue-title">ITEM UNLOCKED</h2>
-        <img id="dialogue-img" src="" alt="Memory">
-        <p id="dialogue-text">...</p>
-        <button class="btn" onclick="nextLevel()">CONTINUE ❤️</button>
+    <button type="button" class="start-race-btn" id="start-race-btn">Start Race</button>
+  </div>
+
+  <!-- GAME -->
+  <div id="game-screen">
+    <div class="game-ui">
+      <div class="collectibles-ui">
+        <span id="ui-jellyace">🍬 Jellyace</span>
+        <span id="ui-camera">📷 Camera</span>
+        <span id="ui-rose">🌹 Rose</span>
+      </div>
+      <div class="controls-hint">← → or A/D drive · ↑↓ or W/S move lane</div>
     </div>
+    <canvas id="race-canvas"></canvas>
+  </div>
 
-    <div id="proposal-screen" class="screen hidden">
-        <h1>🏆 GRAND PRIX WINNER 🏆</h1>
-        <p>You cleared every line. You fit perfectly into my life.</p>
-        <h2 style="color:#ff4d6d; font-size: 2rem;">Will you be my Player 2?</h2>
-        <div>
-            <button class="btn" onclick="alert('Happy Valentine\'s Day! I love you! ❤️')">YES! ❤️</button>
-            <button class="btn" id="no-btn">NO</button>
-        </div>
+  <!-- Collectible storyline popup (editable messages in script) -->
+  <div id="popup-overlay">
+    <div id="popup-box">
+      <div class="popup-emoji" id="popup-emoji"></div>
+      <div class="popup-title" id="popup-title"></div>
+      <p class="popup-text" id="popup-text"></p>
+      <button type="button" id="popup-close">Continue racing</button>
     </div>
+  </div>
 
-    <script>
-        /* --- TETRIS ENGINE --- */
-        const canvas = document.getElementById('tetris');
-        const context = canvas.getContext('2d');
-        context.scale(20, 20); // Scale up everything 20x
+  <!-- Finish: the question -->
+  <div id="finish-overlay">
+    <div id="finish-box">
+      <div class="finish-hearts">💕</div>
+      <p class="finish-question" id="finish-question"></p>
+      <div class="finish-buttons">
+        <button type="button" class="finish-btn" id="finish-yes">Yes!</button>
+        <button type="button" class="finish-btn" id="finish-no">Not yet</button>
+      </div>
+    </div>
+  </div>
 
-        // Story Data
-        const storyChapters = [
-            {
-                linesNeeded: 2,
-                title: "Chapter 1: The Fuel",
-                text: "Jellyace acquired. Like this sweet treat, you bring comfort to my chaotic days.",
-                // Placeholder image - replace later
-                img: "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=400"
-            },
-            {
-                linesNeeded: 2,
-                title: "Chapter 2: The Focus",
-                text: "Camera acquired. I don't need perfect poses. I just love capturing the real you.",
-                img: "https://images.unsplash.com/photo-1533738363-b7f9aef128ce?w=400"
-            },
-            {
-                linesNeeded: 2,
-                title: "Chapter 3: The Finish",
-                text: "The Rose. We've built this foundation block by block. Now, for the final question...",
-                img: "https://images.unsplash.com/photo-1496062031456-07b8f162a322?w=400"
-            }
-        ];
-
-        let currentChapter = 0;
-        let linesClearedInStage = 0;
-        let gamePaused = false;
-
-        // Colors for pieces
-        const colors = [
-            null,
-            '#FF0D72', // T
-            '#0DC2FF', // I
-            '#0DFF72', // S
-            '#F538FF', // Z
-            '#FF8E0D', // L
-            '#FFE138', // J
-            '#3877FF', // O
-        ];
-
-        // Shapes
-        function createPiece(type) {
-            if (type === 'I') {
-                return [ [0, 1, 0, 0], [0, 1, 0, 0], [0, 1, 0, 0], [0, 1, 0, 0], ];
-            } else if (type === 'L') {
-                return [ [0, 2, 0], [0, 2, 0], [0, 2, 2], ];
-            } else if (type === 'J') {
-                return [ [0, 3, 0], [0, 3, 0], [3, 3, 0], ];
-            } else if (type === 'O') {
-                return [ [4, 4], [4, 4], ];
-            } else if (type === 'Z') {
-                return [ [5, 5, 0], [0, 5, 5], [0, 0, 0], ];
-            } else if (type === 'S') {
-                return [ [0, 6, 6], [6, 6, 0], [0, 0, 0], ];
-            } else if (type === 'T') {
-                return [ [0, 7, 0], [7, 7, 7], [0, 0, 0], ];
-            }
+  <script>
+    // ═══════════════════════════════════════════════════════════════
+    // EDIT YOUR MESSAGES HERE (storyline for each collectible + final question)
+    // ═══════════════════════════════════════════════════════════════
+    const CONFIG = {
+      collectibles: {
+        jellyace: {
+          emoji: '🍬',
+          title: 'Jellyace',
+          message: 'Remember our first road trip? You shared your jellyace with me and I knew you were the one. Sweet moments with you are my favorite.'
+        },
+        camera: {
+          emoji: '📷',
+          title: 'Camera',
+          message: 'Every photo we take together is a memory I never want to forget. I want to keep making more with you.'
+        },
+        rose: {
+          emoji: '🌹',
+          title: 'Rose',
+          message: 'A rose for you — not just today, but every day you make my life more beautiful. You deserve all the flowers.'
         }
+      },
+      finishQuestion: 'Will you be with me on Valentine\'s Day? 💕'
+    };
 
-        // --- GAME LOGIC ---
+    // ═══════════════════════════════════════════════════════════════
+    // GAME STATE
+    // ═══════════════════════════════════════════════════════════════
+    let car = null;      // 'ferrari' | 'mercedes'
+    let character = null; // 'cat' | 'dog'
+    let collected = { jellyace: false, camera: false, rose: false };
+    let gameStarted = false;
+    let playerX = 0;
+    let playerY = 0;
+    let roadOffset = 0;
+    let collectibles = [];
+    let finishLineX = 0;
+    let hasWon = false;
+    let keys = {};
+    let canvas, ctx;
+    const PLAYER_SPEED = 6;
+    const ROAD_SPEED = 6;
+    const TRACK_LENGTH = 9000;
 
-        function arenaSweep() {
-            let rowCount = 1;
-            outer: for (let y = arena.length - 1; y > 0; --y) {
-                for (let x = 0; x < arena[y].length; ++x) {
-                    if (arena[y][x] === 0) {
-                        continue outer;
-                    }
-                }
+    const CAR_COLORS = {
+      ferrari: { main: '#dc0032', accent: '#ffeb00' },
+      mercedes: { main: '#00d2be', accent: '#e8e8e8' }
+    };
 
-                // Row is full
-                const row = arena.splice(y, 1)[0].fill(0);
-                arena.unshift(row);
-                ++y;
-                
-                // Story Logic
-                linesClearedInStage++;
-                updateHUD();
-                checkStoryProgress();
-            }
+    const COLLECTIBLE_DEFS = [
+      { id: 'jellyace', emoji: '🍬', x: 1800 },
+      { id: 'camera', emoji: '📷', x: 4500 },
+      { id: 'rose', emoji: '🌹', x: 7500 }
+    ];
+
+    // ═══════════════════════════════════════════════════════════════
+    // DOM
+    // ═══════════════════════════════════════════════════════════════
+    const startScreen = document.getElementById('start-screen');
+    const gameScreen = document.getElementById('game-screen');
+    const startRaceBtn = document.getElementById('start-race-btn');
+    const popupOverlay = document.getElementById('popup-overlay');
+    const popupEmoji = document.getElementById('popup-emoji');
+    const popupTitle = document.getElementById('popup-title');
+    const popupText = document.getElementById('popup-text');
+    const popupClose = document.getElementById('popup-close');
+    const finishOverlay = document.getElementById('finish-overlay');
+    const finishQuestionEl = document.getElementById('finish-question');
+    const finishYes = document.getElementById('finish-yes');
+    const finishNo = document.getElementById('finish-no');
+
+    // ═══════════════════════════════════════════════════════════════
+    // SELECTION
+    // ═══════════════════════════════════════════════════════════════
+    document.querySelectorAll('[data-car]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('[data-car]').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+        if (btn.dataset.car === 'mercedes') btn.classList.add('mercedes');
+        car = btn.dataset.car;
+      });
+    });
+    document.querySelectorAll('[data-char]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('[data-char]').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+        character = btn.dataset.char;
+      });
+    });
+
+    startRaceBtn.addEventListener('click', () => {
+      if (!car || !character) {
+        alert('Pick your car and your character first!');
+        return;
+      }
+      startScreen.classList.add('hidden');
+      setTimeout(() => {
+        startScreen.style.display = 'none';
+        gameScreen.classList.add('visible');
+        initGame();
+      }, 500);
+    });
+
+    // ═══════════════════════════════════════════════════════════════
+    // POPUP & FINISH
+    // ═══════════════════════════════════════════════════════════════
+    function showCollectiblePopup(id) {
+      const c = CONFIG.collectibles[id];
+      if (!c) return;
+      popupEmoji.textContent = c.emoji;
+      popupTitle.textContent = c.title;
+      popupText.textContent = c.message;
+      popupOverlay.classList.add('visible');
+    }
+
+    popupClose.addEventListener('click', () => {
+      popupOverlay.classList.remove('visible');
+    });
+
+    function showFinish() {
+      finishQuestionEl.textContent = CONFIG.finishQuestion;
+      finishOverlay.classList.add('visible');
+    }
+
+    finishYes.addEventListener('click', () => {
+      finishOverlay.classList.remove('visible');
+      alert('Yay! Valentine\'s Day with you is going to be the best! 💕');
+    });
+    finishNo.addEventListener('click', () => {
+      finishOverlay.classList.remove('visible');
+    });
+
+    // ═══════════════════════════════════════════════════════════════
+    // GAME LOOP
+    // ═══════════════════════════════════════════════════════════════
+    function initGame() {
+      canvas = document.getElementById('race-canvas');
+      ctx = canvas.getContext('2d');
+      resizeCanvas();
+      window.addEventListener('resize', resizeCanvas);
+
+      playerX = canvas.width / 2 - 25;
+      playerY = canvas.height - 120;
+      roadOffset = 0;
+      collected = { jellyace: false, camera: false, rose: false };
+      collectibles = COLLECTIBLE_DEFS.map(c => ({ ...c, collected: false }));
+      finishLineX = TRACK_LENGTH;
+      hasWon = false;
+      gameStarted = true;
+
+      updateCollectiblesUI();
+      document.addEventListener('keydown', e => { keys[e.key] = true; });
+      document.addEventListener('keyup', e => { keys[e.key] = false; });
+      requestAnimationFrame(gameLoop);
+    }
+
+    function resizeCanvas() {
+      const w = window.innerWidth;
+      const h = window.innerHeight - 52;
+      canvas.width = w;
+      canvas.height = h;
+      if (gameStarted && playerY !== undefined) playerY = canvas.height - 120;
+    }
+
+    function gameLoop() {
+      if (!gameStarted || !ctx) return;
+
+      const w = canvas.width;
+      const h = canvas.height;
+
+      // Move road (scroll) with arrow keys or A/D
+      if (keys['ArrowRight'] || keys['d'] || keys['D']) {
+        roadOffset += ROAD_SPEED;
+        if (roadOffset > TRACK_LENGTH) roadOffset = TRACK_LENGTH;
+      }
+      if (keys['ArrowLeft'] || keys['a'] || keys['A']) {
+        roadOffset -= ROAD_SPEED;
+        if (roadOffset < 0) roadOffset = 0;
+      }
+      if (keys['ArrowUp'] || keys['w'] || keys['W']) playerY = Math.max(80, playerY - PLAYER_SPEED);
+      if (keys['ArrowDown'] || keys['s'] || keys['S']) playerY = Math.min(h - 80, playerY + PLAYER_SPEED);
+
+      // Draw track (stripes and road)
+      ctx.fillStyle = '#1a1a1a';
+      ctx.fillRect(0, 0, w, h);
+
+      const stripeW = 40;
+      const stripeGap = 80;
+      const startStripe = -roadOffset % (stripeW + stripeGap);
+      ctx.fillStyle = '#2d5016';
+      for (let x = startStripe; x < w + stripeW + stripeGap; x += stripeW + stripeGap) {
+        ctx.fillRect(x, 0, stripeW, h);
+      }
+
+      // Finish line
+      const finishScreenX = 200 - (finishLineX - roadOffset) * (w / TRACK_LENGTH);
+      if (finishLineX - roadOffset < 400) {
+        ctx.fillStyle = 'rgba(255,255,255,0.9)';
+        ctx.fillRect(w - 60, 0, 60, h);
+        ctx.fillStyle = '#111';
+        for (let yy = 0; yy < h; yy += 30) {
+          ctx.fillRect(w - 60, yy, 30, 15);
         }
-
-        function checkStoryProgress() {
-            const chapter = storyChapters[currentChapter];
-            if (linesClearedInStage >= chapter.linesNeeded) {
-                gamePaused = true;
-                showDialogue(chapter);
-            }
+        if (!hasWon && roadOffset >= TRACK_LENGTH - 200) {
+          hasWon = true;
+          showFinish();
         }
+      } else {
+        ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+        ctx.setLineDash([20, 20]);
+        ctx.lineWidth = 4;
+        const fx = Math.max(0, w - 80 - (finishLineX - roadOffset) * 0.5);
+        ctx.beginPath();
+        ctx.moveTo(fx, 0);
+        ctx.lineTo(fx, h);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
 
-        function showDialogue(chapter) {
-            document.getElementById('dialogue-box').classList.remove('hidden');
-            document.getElementById('dialogue-title').innerText = chapter.title;
-            document.getElementById('dialogue-text').innerText = chapter.text;
-            document.getElementById('dialogue-img').src = chapter.img;
+      // Collectibles (as icons along the track)
+      const scale = w / TRACK_LENGTH;
+      const collectibleY = h / 2;
+      collectibles.forEach(col => {
+        if (col.collected) return;
+        const sx = w - 100 - (col.x - roadOffset) * scale;
+        if (sx < -60 || sx > w + 60) return;
+        ctx.font = '36px serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(col.emoji, sx + 30, collectibleY);
+        const hit = Math.abs(playerX + 25 - (sx + 30)) < 45 && Math.abs(playerY + 35 - collectibleY) < 50;
+        if (hit) {
+          col.collected = true;
+          collected[col.id] = true;
+          updateCollectiblesUI();
+          showCollectiblePopup(col.id);
         }
+      });
 
-        function nextLevel() {
-            document.getElementById('dialogue-box').classList.add('hidden');
-            linesClearedInStage = 0;
-            currentChapter++;
-            
-            if (currentChapter >= storyChapters.length) {
-                // Game Over - Win!
-                document.getElementById('game-layout').classList.add('hidden');
-                document.getElementById('proposal-screen').classList.remove('hidden');
-                initRunawayButton();
-            } else {
-                gamePaused = false;
-                arena.forEach(row => row.fill(0)); // Clear board for next level
-                updateHUD();
-                update();
-            }
-        }
+      // Player car
+      const colors = CAR_COLORS[car] || CAR_COLORS.ferrari;
+      const charEmoji = character === 'cat' ? '🐱' : '🐕';
+      const px = playerX;
+      const py = playerY;
 
-        function updateHUD() {
-            const needed = storyChapters[currentChapter].linesNeeded;
-            const left = needed - linesClearedInStage;
-            document.getElementById('lines-display').innerText = Math.max(0, left);
-            document.getElementById('level-display').innerText = `${currentChapter + 1} / 3`;
-        }
+      ctx.fillStyle = colors.main;
+      ctx.beginPath();
+      ctx.rect(px, py, 50, 70);
+      ctx.fill();
+      ctx.strokeStyle = colors.accent;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.font = '28px serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(charEmoji, px + 25, py + 48);
 
-        function collide(arena, player) {
-            const m = player.matrix;
-            const o = player.pos;
-            for (let y = 0; y < m.length; ++y) {
-                for (let x = 0; x < m[y].length; ++x) {
-                    if (m[y][x] !== 0 &&
-                       (arena[y + o.y] && arena[y + o.y][x + o.x]) !== 0) {
-                        return true;
-                    }
-                }
-            }
-            return false;
-        }
+      requestAnimationFrame(gameLoop);
+    }
 
-        function createMatrix(w, h) {
-            const matrix = [];
-            while (h--) {
-                matrix.push(new Array(w).fill(0));
-            }
-            return matrix;
-        }
-
-        function draw() {
-            context.fillStyle = '#000';
-            context.fillRect(0, 0, canvas.width, canvas.height);
-            drawMatrix(arena, {x: 0, y: 0});
-            drawMatrix(player.matrix, player.pos);
-        }
-
-        function drawMatrix(matrix, offset) {
-            matrix.forEach((row, y) => {
-                row.forEach((value, x) => {
-                    if (value !== 0) {
-                        context.fillStyle = colors[value];
-                        context.fillRect(x + offset.x, y + offset.y, 1, 1);
-                        // Add a little border for grid look
-                        context.lineWidth = 0.05;
-                        context.strokeStyle = 'white';
-                        context.strokeRect(x + offset.x, y + offset.y, 1, 1);
-                    }
-                });
-            });
-        }
-
-        function merge(arena, player) {
-            player.matrix.forEach((row, y) => {
-                row.forEach((value, x) => {
-                    if (value !== 0) {
-                        arena[y + player.pos.y][x + player.pos.x] = value;
-                    }
-                });
-            });
-        }
-
-        function rotate(matrix, dir) {
-            for (let y = 0; y < matrix.length; ++y) {
-                for (let x = 0; x < y; ++x) {
-                    [matrix[x][y], matrix[y][x]] = [matrix[y][x], matrix[x][y]];
-                }
-            }
-            if (dir > 0) matrix.forEach(row => row.reverse());
-            else matrix.reverse();
-        }
-
-        function playerDrop() {
-            player.pos.y++;
-            if (collide(arena, player)) {
-                player.pos.y--;
-                merge(arena, player);
-                playerReset();
-                arenaSweep();
-            }
-            dropCounter = 0;
-        }
-
-        function playerMove(offset) {
-            player.pos.x += offset;
-            if (collide(arena, player)) {
-                player.pos.x -= offset;
-            }
-        }
-
-        function playerReset() {
-            const pieces = 'ILJOTSZ';
-            player.matrix = createPiece(pieces[pieces.length * Math.random() | 0]);
-            player.pos.y = 0;
-            player.pos.x = (arena[0].length / 2 | 0) - (player.matrix[0].length / 2 | 0);
-            
-            // Game Over Check (if top is full)
-            if (collide(arena, player)) {
-                arena.forEach(row => row.fill(0));
-            }
-        }
-
-        function playerRotate(dir) {
-            const pos = player.pos.x;
-            let offset = 1;
-            rotate(player.matrix, dir);
-            while (collide(arena, player)) {
-                player.pos.x += offset;
-                offset = -(offset + (offset > 0 ? 1 : -1));
-                if (offset > player.matrix[0].length) {
-                    rotate(player.matrix, -dir);
-                    player.pos.x = pos;
-                    return;
-                }
-            }
-        }
-
-        let dropCounter = 0;
-        let dropInterval = 1000;
-        let lastTime = 0;
-
-        function update(time = 0) {
-            if (gamePaused) return;
-
-            const deltaTime = time - lastTime;
-            lastTime = time;
-            dropCounter += deltaTime;
-            if (dropCounter > dropInterval) {
-                playerDrop();
-            }
-            draw();
-            requestAnimationFrame(update);
-        }
-
-        const arena = createMatrix(12, 20);
-        const player = {
-            pos: {x: 0, y: 0},
-            matrix: null,
-        };
-
-        // --- INPUTS ---
-        document.addEventListener('keydown', event => {
-            if (gamePaused) return;
-
-            if (event.keyCode === 37) { // Left
-                playerMove(-1);
-            } else if (event.keyCode === 39) { // Right
-                playerMove(1);
-            } else if (event.keyCode === 40) { // Down
-                playerDrop();
-            } else if (event.keyCode === 38) { // Up (Rotate)
-                playerRotate(1);
-            }
-        });
-
-        // --- STARTUP ---
-        function setTeam(team) {
-            document.body.className = team;
-            document.getElementById('start-screen').classList.add('hidden');
-            document.getElementById('game-layout').classList.remove('hidden');
-            playerReset();
-            updateHUD();
-            update();
-        }
-
-        function initRunawayButton() {
-            const btn = document.getElementById('no-btn');
-            const run = () => {
-                const x = Math.random() * (window.innerWidth - 100);
-                const y = Math.random() * (window.innerHeight - 50);
-                btn.style.position = 'fixed';
-                btn.style.left = x + 'px';
-                btn.style.top = y + 'px';
-            };
-            btn.addEventListener('mouseover', run);
-            btn.addEventListener('touchstart', run);
-        }
-
-    </script>
+    function updateCollectiblesUI() {
+      ['jellyace', 'camera', 'rose'].forEach(id => {
+        const el = document.getElementById('ui-' + id);
+        if (el) el.classList.toggle('got', collected[id]);
+      });
+    }
+  </script>
 </body>
 </html>
+
 
