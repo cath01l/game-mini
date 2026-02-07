@@ -465,6 +465,16 @@
       { id: 'rose', emoji: '🌹', x: 7500 }
     ];
 
+    // Opponents: world x position (they stay slightly ahead until you pass them), lane 0/1/2
+    let opponents = [];
+    const OPPONENT_COLORS = [
+      { main: '#1e3a8a', accent: '#60a5fa' },   // blue
+      { main: '#166534', accent: '#4ade80' },   // green
+      { main: '#9a3412', accent: '#fb923c' }   // orange
+    ];
+    const LANE_COUNT = 3;
+    const COLLECT_THRESHOLD = 100;
+
     // ═══════════════════════════════════════════════════════════════
     // DOM
     // ═══════════════════════════════════════════════════════════════
@@ -552,13 +562,21 @@
       window.addEventListener('resize', resizeCanvas);
 
       playerX = canvas.width / 2 - 25;
-      playerY = canvas.height - 120;
+      playerY = canvas.height * 0.52 - 35;
       roadOffset = 0;
       collected = { jellyace: false, camera: false, rose: false };
       collectibles = COLLECTIBLE_DEFS.map(c => ({ ...c, collected: false }));
       finishLineX = TRACK_LENGTH;
       hasWon = false;
       gameStarted = true;
+      // Opponents: world X (spread along track), lane 0/1/2
+      opponents = [
+        { worldX: 500, lane: 0, color: OPPONENT_COLORS[0] },
+        { worldX: 2200, lane: 1, color: OPPONENT_COLORS[1] },
+        { worldX: 4000, lane: 0, color: OPPONENT_COLORS[2] },
+        { worldX: 5500, lane: 2, color: OPPONENT_COLORS[0] },
+        { worldX: 7000, lane: 1, color: OPPONENT_COLORS[1] }
+      ];
 
       updateCollectiblesUI();
       document.addEventListener('keydown', e => { keys[e.key] = true; });
@@ -571,7 +589,7 @@
       const h = window.innerHeight - 52;
       canvas.width = w;
       canvas.height = h;
-      if (gameStarted && playerY !== undefined) playerY = canvas.height - 120;
+      if (gameStarted && playerY !== undefined) playerY = Math.max(0, Math.min(h - 70, canvas.height * 0.52 - 35));
     }
 
     function gameLoop() {
@@ -589,58 +607,98 @@
         roadOffset -= ROAD_SPEED;
         if (roadOffset < 0) roadOffset = 0;
       }
-      if (keys['ArrowUp'] || keys['w'] || keys['W']) playerY = Math.max(80, playerY - PLAYER_SPEED);
-      if (keys['ArrowDown'] || keys['s'] || keys['S']) playerY = Math.min(h - 80, playerY + PLAYER_SPEED);
+      const roadTopY = h * 0.15;
+      const roadBottomY = h * 0.92;
+      if (keys['ArrowUp'] || keys['w'] || keys['W']) playerY = Math.max(roadTopY + 30, playerY - PLAYER_SPEED);
+      if (keys['ArrowDown'] || keys['s'] || keys['S']) playerY = Math.min(roadBottomY - 30, playerY + PLAYER_SPEED);
 
-      // Draw track (stripes and road)
-      ctx.fillStyle = '#1a1a1a';
-      ctx.fillRect(0, 0, w, h);
+      const scale = w / TRACK_LENGTH;
 
-      const stripeW = 40;
-      const stripeGap = 80;
-      const startStripe = -roadOffset % (stripeW + stripeGap);
-      ctx.fillStyle = '#2d5016';
-      for (let x = startStripe; x < w + stripeW + stripeGap; x += stripeW + stripeGap) {
-        ctx.fillRect(x, 0, stripeW, h);
+      // Road with lanes (asphalt + white lines)
+      const roadTop = h * 0.15;
+      const roadBottom = h * 0.92;
+      const roadH = roadBottom - roadTop;
+      const laneH = roadH / LANE_COUNT;
+      function laneCenter(laneIndex) {
+        return roadTop + (laneIndex + 0.5) * laneH;
       }
 
+      ctx.fillStyle = '#2a2a2c';
+      ctx.fillRect(0, 0, w, h);
+      ctx.fillStyle = '#3a3a3e';
+      ctx.fillRect(0, roadTop, w, roadH);
+      ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+      ctx.lineWidth = 3;
+      for (let i = 1; i < LANE_COUNT; i++) {
+        const y = roadTop + i * laneH;
+        ctx.setLineDash([24, 20]);
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(w, y);
+        ctx.stroke();
+      }
+      ctx.setLineDash([]);
+      ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(0, roadTop, w, roadH);
+
       // Finish line
-      const finishScreenX = 200 - (finishLineX - roadOffset) * (w / TRACK_LENGTH);
       if (finishLineX - roadOffset < 400) {
-        ctx.fillStyle = 'rgba(255,255,255,0.9)';
-        ctx.fillRect(w - 60, 0, 60, h);
+        const fx = w - 50;
+        ctx.fillStyle = 'rgba(255,255,255,0.95)';
+        ctx.fillRect(fx, roadTop, 50, roadH);
         ctx.fillStyle = '#111';
-        for (let yy = 0; yy < h; yy += 30) {
-          ctx.fillRect(w - 60, yy, 30, 15);
+        for (let yy = roadTop; yy < roadBottom; yy += 28) {
+          ctx.fillRect(fx, yy, 25, 14);
         }
         if (!hasWon && roadOffset >= TRACK_LENGTH - 200) {
           hasWon = true;
           showFinish();
         }
       } else {
-        ctx.strokeStyle = 'rgba(255,255,255,0.5)';
-        ctx.setLineDash([20, 20]);
-        ctx.lineWidth = 4;
-        const fx = Math.max(0, w - 80 - (finishLineX - roadOffset) * 0.5);
-        ctx.beginPath();
-        ctx.moveTo(fx, 0);
-        ctx.lineTo(fx, h);
-        ctx.stroke();
-        ctx.setLineDash([]);
+        const fx = Math.min(w - 20, w/2 + (finishLineX - roadOffset) * scale);
+        if (fx > 0) {
+          ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+          ctx.setLineDash([20, 20]);
+          ctx.lineWidth = 4;
+          ctx.beginPath();
+          ctx.moveTo(fx, roadTop);
+          ctx.lineTo(fx, roadBottom);
+          ctx.stroke();
+          ctx.setLineDash([]);
+        }
       }
 
-      // Collectibles (as icons along the track)
-      const scale = w / TRACK_LENGTH;
-      const collectibleY = h / 2;
+      // Opponents (draw ahead of player on the road)
+      opponents.forEach(opp => {
+        const sx = w/2 + (opp.worldX - roadOffset) * scale;
+        if (sx < -80 || sx > w + 80) return;
+        const sy = laneCenter(opp.lane);
+        const c = opp.color;
+        ctx.fillStyle = c.main;
+        ctx.fillRect(sx - 22, sy - 32, 44, 64);
+        ctx.strokeStyle = c.accent;
+        ctx.lineWidth = 2;
+        ctx.strokeRect(sx - 22, sy - 32, 44, 64);
+        ctx.fillStyle = '#fff';
+        ctx.font = '20px serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('🏁', sx, sy + 6);
+      });
+
+      // Collectibles: ahead of player, move toward center as you drive
+      const collectibleY = laneCenter(1);
       collectibles.forEach(col => {
         if (col.collected) return;
-        const sx = w - 100 - (col.x - roadOffset) * scale;
-        if (sx < -60 || sx > w + 60) return;
-        ctx.font = '36px serif';
+        const distAhead = col.x - roadOffset;
+        const sx = w/2 + distAhead * scale;
+        if (sx < -40 || sx > w + 40) return;
+        ctx.font = '38px serif';
         ctx.textAlign = 'center';
-        ctx.fillText(col.emoji, sx + 30, collectibleY);
-        const hit = Math.abs(playerX + 25 - (sx + 30)) < 45 && Math.abs(playerY + 35 - collectibleY) < 50;
-        if (hit) {
+        ctx.fillText(col.emoji, sx, collectibleY);
+        const inRange = Math.abs(distAhead) < COLLECT_THRESHOLD;
+        const sameLane = Math.abs((playerY + 35) - collectibleY) < 55;
+        if (inRange && sameLane) {
           col.collected = true;
           collected[col.id] = true;
           updateCollectiblesUI();
@@ -648,7 +706,8 @@
         }
       });
 
-      // Player car
+      // Player car (stays at center X, moves vertically between lanes)
+      playerY = Math.max(roadTop + 30, Math.min(roadBottom - 30, playerY));
       const colors = CAR_COLORS[car] || CAR_COLORS.ferrari;
       const charEmoji = character === 'cat' ? '🐱' : '🐕';
       const px = playerX;
@@ -677,5 +736,6 @@
   </script>
 </body>
 </html>
+
 
 
